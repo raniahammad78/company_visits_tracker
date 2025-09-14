@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Report Action -->
+        <record model="ir.actions.report" id="action_report_company_visit">
+            <field name="name">Visit Report</field>
+            <field name="model">company.visit</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">company_visit_tracker.report_visit_template</field>
+            <field name="print_report_name">'Visit Report - %s' % (object.name)</field>
+        </record>
+    </data>
+
+    <!-- Report Template -->
+    <template id="report_visit_template">
+        <t t-call="web.external_layout">
+            <div>
+                <!-- Watermark Logo -->
+                <img t-att-src="'/company_visit_tracker/static/description/icon.png'"
+                     style="position: fixed;
+                    top: 80%;
+                    left: 10%;
+                    transform: translate(-50%, -90%);
+                    opacity: 0.25;
+                    z-index: 500;
+                    max-width: 80%;
+                    height: auto;
+                    pointer-events: none;"/>
+            </div>
+            <main>
+                <!-- Title -->
+                <h2 style="position: relative; z-index: 10; text-align: center; font-weight: bold; color: navy; margin-bottom: 30px;">
+                    SERVICE CALL
+                </h2>
+
+                <t t-foreach="docs" t-as="doc">
+                    <div class="page">
+                        <!-- Visit Number -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Visit Number:</strong>
+                            <span t-field="doc.name" style="margin: 18px; font-size: 18px;"/>
+                        </p>
+
+                        <!-- Visit Date -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Visit Date:</strong>
+                            <span t-field="doc.visit_date" style="margin: 18px; font-size: 18px;"/>
+                        </p>
+
+                        <!-- Total Visit -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Total Visit:</strong>
+                            <span t-esc="doc.contract_id.visits_per_month or '12'" style="margin: 18px; font-size: 18px;"/>
+                        </p>
+
+                        <!-- Client Name -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Client Name:</strong>
+                            <span t-field="doc.partner_id.name" style="margin: 18px; font-size: 18px;"/>
+                        </p>
+
+                        <!-- Address -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Address:</strong>
+                            <span style="margin: 18px; font-size: 18px;">
+                                <span t-field="doc.partner_id.name"/>
+                                <span t-if="doc.partner_id.street">, <span t-field="doc.partner_id.street"/></span>
+                                <span t-if="doc.partner_id.city">, <span t-field="doc.partner_id.city"/></span>
+                                <span t-if="doc.partner_id.state_id"> <span t-field="doc.partner_id.state_id.name"/></span>
+                                <span t-if="doc.partner_id.zip"> <span t-field="doc.partner_id.zip"/></span>
+                                <span t-if="doc.partner_id.country_id"> <span t-field="doc.partner_id.country_id.name"/></span>
+                            </span>
+                        </p>
+
+                        <!-- Type of Problem -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Type of Problem:</strong>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px;">
+                                <span t-field="doc.reason"/>
+                            </strong>
+                        </p>
+
+                        <!-- Assigned Engineer -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Assigned Engineer:</strong>
+                            <span t-field="doc.assign_engineer_id.name" style="margin: 18px; font-size: 18px;"/>
+                        </p>
+
+                        <!-- Engineer Comments -->
+                        <p>
+                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Engineer Comments:</strong>
+                            <div style="margin: 18px; font-size: 20px;">
+                                <span t-field="doc.description"/>
+                            </div>
+                        </p>
+
+                        <br/>
+                        <br/>
+                        <br/>
+                        <br/>
+
+                        <!-- Signature Section -->
+                        <table style="width: 100%; margin-top: 20px;">
+                            <tr>
+                                <td style="width: 50%; text-align: center; padding-left: 10px;">
+                                    <p style="padding-left: 20px;">
+                                        <strong style="text-align: center; font-weight: bold; font-size: 26px; color: #0051b6;">
+                                            Engineer Signature:
+                                        </strong>
+                                    </p>
+                                    <t t-if="doc.engineer_signature">
+                                        <img t-att-src="'data:image/png;base64,%s' % doc.engineer_signature.decode()"
+                                             style="text-align: center; width: 200px; height: 100px;"/>
+                                    </t>
+                                </td>
+
+                                <td style="width: 50%; text-align: center; padding-left: 10px;">
+                                    <p style="padding-left: 20px;">
+                                        <strong style="text-align: center; font-weight: bold; font-size: 26px; color: #0051b6;">
+                                            Client Signature:
+                                        </strong>
+                                    </p>
+                                    <t t-if="doc.client_signature">
+                                        <img t-att-src="'data:image/png;base64,%s' % doc.client_signature.decode()"
+                                             style="text-align: center; width: 200px; height: 100px;"/>
+                                    </t>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <br/>
+                    </div>
+                </t>
+            </main>
+
+            <!-- Custom Footer -->
+            <div class="footer" style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; border-top: 1px solid #000; padding-top: 10px;">
+                Page <span class="page"/> / <span class="topage"/>
+            </div>
+        </t>
+    </template>
+</odoo>
