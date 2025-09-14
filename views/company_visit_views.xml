@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_company_visit_form" model="ir.ui.view">
+        <field name="name">company.visit.form</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <form string="Company Visit">
+                <header>
+                    <!-- NEW BUTTON ADDED HERE -->
+                    <button name="action_send_report_by_email" string="Send by Email" type="object"
+                            class="btn-secondary"/>
+                    <button name="action_mark_done" string="Mark as Done" type="object" class="btn-primary"
+                            invisible="state != 'pending'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="contract_id"/>
+                            <field name="partner_id"/>
+                            <field name="folder_id" readonly="1"/>
+                            <field name="partner_address"/>
+                        </group>
+                        <group>
+                            <field name="visit_date"/>
+                            <field name="assign_engineer_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Visit Details">
+                            <group>
+                                <field name="reason"/>
+                                <field name="description"/>
+                            </group>
+                        </page>
+                        <page string="Signatures">
+                            <group>
+                                <field name="engineer_signature" widget="signature"/>
+                                <field name="client_signature" widget="signature"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Visit List View -->
+    <record id="view_company_visit_list" model="ir.ui.view">
+        <field name="name">company.visit.list</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <list string="Company Visits">
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="partner_id"/>
+                <field name="visit_date"/>
+                <field name="assign_engineer_id"/>
+                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'pending'" decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Visit Calendar View -->
+    <record id="view_company_visit_calendar" model="ir.ui.view">
+        <field name="name">company.visit.calendar</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <calendar string="Visits Calendar" date_start="visit_date" color="partner_id">
+                <field name="name"/>
+                <field name="partner_id"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- Visit Graph View -->
+    <record id="view_company_visit_graph" model="ir.ui.view">
+        <field name="name">company.visit.graph</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <graph string="Visits Analysis">
+                <field name="partner_id"/>
+                <field name="state"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Visit Pivot View -->
+    <record id="view_company_visit_pivot" model="ir.ui.view">
+        <field name="name">company.visit.pivot</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <pivot string="Visits Pivot">
+                <field name="partner_id" type="row"/>
+                <field name="visit_date" type="col" interval="month"/>
+                <field name="state" type="col"/>
+            </pivot>
+        </field>
+    </record>
+</odoo>
+
+
