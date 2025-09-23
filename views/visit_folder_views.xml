@@ -65,12 +65,32 @@
                         </field>
                     </div>
 
-                    <div invisible="not is_not_contracted_folder">
+                    <div invisible="not is_not_contracted_folder or parent_id">
+                        <h2>Monthly Folders</h2>
+                        <field name="child_folder_ids" nolabel="1">
+                             <kanban>
+                                <field name="name"/>
+                                <field name="document_count"/>
+                                <templates><t t-name="kanban-box">
+                                    <div t-attf-class="oe_kanban_global_click">
+                                        <div class="o_kanban_image"><i class="fa fa-calendar fa-3x" style="color: #5bc0de;"/></div>
+                                        <div class="oe_kanban_details">
+                                            <strong><field name="name"/></strong>
+                                            <div><span><t t-esc="record.document_count.raw_value"/> Reports</span></div>
+                                        </div>
+                                    </div>
+                                </t></templates>
+                            </kanban>
+                        </field>
+                    </div>
+
+                    <div invisible="not parent_id or not parent_id.is_not_contracted_folder">
                         <h2>Visit Reports</h2>
                         <field name="document_ids" nolabel="1">
                             <list><field name="name"/></list>
                         </field>
                     </div>
+
                 </sheet>
             </form>
         </field>
