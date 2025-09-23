@@ -12,7 +12,15 @@
         <record id="seq_company_visit" model="ir.sequence">
             <field name="name">Company Visit</field>
             <field name="code">company.visit</field>
-            <field name="prefix">VST</field>
+            <field name="prefix">VST-</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_not_contracted_visit" model="ir.sequence">
+            <field name="name">Not Contracted Company Visit</field>
+            <field name="code">not.contracted.visit</field>
+            <field name="prefix">NCV-</field>
             <field name="padding">6</field>
             <field name="company_id" eval="False"/>
         </record>

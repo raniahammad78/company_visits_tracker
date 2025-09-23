@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo><data noupdate="1">
+    <record id="folder_not_contracted_visits" model="visit.folder">
+        <field name="name">Not Contracted Visits</field>
+        <field name="parent_id" eval="False"/>
+        <field name="is_not_contracted_folder">True</field>
+    </record>
+</data></odoo>
