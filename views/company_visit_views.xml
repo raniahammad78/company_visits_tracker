@@ -6,7 +6,6 @@
         <field name="arch" type="xml">
             <form string="Company Visit">
                 <header>
-                    <!-- NEW BUTTON ADDED HERE -->
                     <button name="action_send_report_by_email" string="Send by Email" type="object"
                             class="btn-secondary"/>
                     <button name="action_mark_done" string="Mark as Done" type="object" class="btn-primary"
@@ -24,6 +23,7 @@
                         <group>
                             <field name="contract_id"/>
                             <field name="partner_id"/>
+                            <field name="visit_number"/>
                             <field name="folder_id" readonly="1"/>
                             <field name="partner_address"/>
                         </group>
@@ -53,12 +53,15 @@
         </field>
     </record>
 
-    <!-- Visit List View -->
     <record id="view_company_visit_list" model="ir.ui.view">
         <field name="name">company.visit.list</field>
         <field name="model">company.visit</field>
         <field name="arch" type="xml">
-            <list string="Company Visits">
+            <list string="Company Visits" decoration-info="is_extra_visit==True">
+                <field name="is_extra_visit" invisible="1"/>
+                <button name="action_open_visit_form" type="object" icon="fa-plus-circle text-info"
+                        invisible="not is_extra_visit"
+                        class="oe_link_icon oe_read_only p-0" aria-label="Extra Visit" title="Extra Visit"/>
                 <field name="name"/>
                 <field name="contract_id"/>
                 <field name="partner_id"/>
@@ -69,7 +72,6 @@
         </field>
     </record>
 
-    <!-- Visit Calendar View -->
     <record id="view_company_visit_calendar" model="ir.ui.view">
         <field name="name">company.visit.calendar</field>
         <field name="model">company.visit</field>
@@ -81,7 +83,6 @@
         </field>
     </record>
 
-    <!-- Visit Graph View -->
     <record id="view_company_visit_graph" model="ir.ui.view">
         <field name="name">company.visit.graph</field>
         <field name="model">company.visit</field>
@@ -93,7 +94,6 @@
         </field>
     </record>
 
-    <!-- Visit Pivot View -->
     <record id="view_company_visit_pivot" model="ir.ui.view">
         <field name="name">company.visit.pivot</field>
         <field name="model">company.visit</field>
@@ -106,5 +106,3 @@
         </field>
     </record>
 </odoo>
-
-

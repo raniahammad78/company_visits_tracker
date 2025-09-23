@@ -6,6 +6,9 @@
             <form string="Visit Contract">
                 <header>
                     <button name="action_start_contract" string="Start Contract" type="object" class="btn-primary" invisible="state != 'draft'"/>
+
+                    <button name="action_open_extra_visit_wizard" string="Add Extra Visits" type="object" class="btn-secondary" invisible="state != 'in_progress'"/>
+
                     <button name="action_generate_current_month_visits" string="Generate Current Month's Visits" type="object" class="btn-secondary" invisible="state != 'in_progress'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done"/>
                 </header>
@@ -56,4 +59,3 @@
         <field name="view_mode">list,form,kanban</field>
     </record>
 </odoo>
-

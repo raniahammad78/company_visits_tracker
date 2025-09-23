@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_not_contracted_visit_form" model="ir.ui.view">
+        <field name="name">not.contracted.visit.form</field>
+        <field name="model">not.contracted.visit</field>
+        <field name="arch" type="xml">
+            <form string="Not Contracted Company Visit">
+                <header>
+                    <button name="action_print_report" string="Print Report" type="object" class="btn-primary"/>
+                    <button name="action_mark_done" string="Mark as Done" type="object" class="btn-secondary" invisible="state != 'pending'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="partner_address"/>
+                        </group>
+                        <group>
+                            <field name="visit_date"/>
+                            <field name="assign_engineer_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Visit Details">
+                            <group>
+                                <field name="reason"/>
+                                <field name="description"/>
+                            </group>
+                        </page>
+                        <page string="Signatures">
+                            <group>
+                                <field name="engineer_signature" widget="signature"/>
+                                <field name="client_signature" widget="signature"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_not_contracted_visit_list" model="ir.ui.view">
+        <field name="name">not.contracted.visit.list</field>
+        <field name="model">not.contracted.visit</field>
+        <field name="arch" type="xml">
+            <list string="Not Contracted Company Visits">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="visit_date"/>
+                <field name="assign_engineer_id"/>
+                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'pending'" decoration-danger="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_not_contracted_visit" model="ir.actions.act_window">
+        <field name="name">Not Contracted Company</field>
+        <field name="res_model">not.contracted.visit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
