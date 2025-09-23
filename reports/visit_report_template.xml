@@ -1,21 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
-        <!-- Report Action -->
-        <record model="ir.actions.report" id="action_report_company_visit">
-            <field name="name">Visit Report</field>
-            <field name="model">company.visit</field>
-            <field name="report_type">qweb-pdf</field>
-            <field name="report_name">company_visit_tracker.report_visit_template</field>
-            <field name="print_report_name">'Visit Report - %s' % (object.name)</field>
-        </record>
-    </data>
-
-    <!-- Report Template -->
     <template id="report_visit_template">
         <t t-call="web.external_layout">
             <div>
-                <!-- Watermark Logo -->
                 <img t-att-src="'/company_visit_tracker/static/description/icon.png'"
                      style="position: fixed;
                     top: 80%;
@@ -28,38 +15,34 @@
                     pointer-events: none;"/>
             </div>
             <main>
-                <!-- Title -->
                 <h2 style="position: relative; z-index: 10; text-align: center; font-weight: bold; color: navy; margin-bottom: 30px;">
                     SERVICE CALL
                 </h2>
 
                 <t t-foreach="docs" t-as="doc">
                     <div class="page">
-                        <!-- Visit Number -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Visit Number:</strong>
                             <span t-field="doc.name" style="margin: 18px; font-size: 18px;"/>
                         </p>
 
-                        <!-- Visit Date -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Visit Date:</strong>
                             <span t-field="doc.visit_date" style="margin: 18px; font-size: 18px;"/>
                         </p>
 
-                        <!-- Total Visit -->
-                        <p>
-                            <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Total Visit:</strong>
-                            <span t-esc="doc.contract_id.visits_per_month or '12'" style="margin: 18px; font-size: 18px;"/>
-                        </p>
+                        <t t-if="'contract_id' in doc and doc.contract_id">
+                            <p>
+                                <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Total Contract Visits:</strong>
+                                <span t-esc="doc.contract_id.visits_per_month or 'N/A'" style="margin: 18px; font-size: 18px;"/>
+                            </p>
+                        </t>
 
-                        <!-- Client Name -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Client Name:</strong>
                             <span t-field="doc.partner_id.name" style="margin: 18px; font-size: 18px;"/>
                         </p>
 
-                        <!-- Address -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Address:</strong>
                             <span style="margin: 18px; font-size: 18px;">
@@ -72,7 +55,6 @@
                             </span>
                         </p>
 
-                        <!-- Type of Problem -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Type of Problem:</strong>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px;">
@@ -80,13 +62,11 @@
                             </strong>
                         </p>
 
-                        <!-- Assigned Engineer -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Assigned Engineer:</strong>
                             <span t-field="doc.assign_engineer_id.name" style="margin: 18px; font-size: 18px;"/>
                         </p>
 
-                        <!-- Engineer Comments -->
                         <p>
                             <strong style="margin: 18px; font-weight: bold; font-size: 18px; color: #0051b6;">Engineer Comments:</strong>
                             <div style="margin: 18px; font-size: 20px;">
@@ -94,12 +74,8 @@
                             </div>
                         </p>
 
-                        <br/>
-                        <br/>
-                        <br/>
-                        <br/>
+                        <br/><br/><br/><br/>
 
-                        <!-- Signature Section -->
                         <table style="width: 100%; margin-top: 20px;">
                             <tr>
                                 <td style="width: 50%; text-align: center; padding-left: 10px;">
@@ -127,13 +103,11 @@
                                 </td>
                             </tr>
                         </table>
-
                         <br/>
                     </div>
                 </t>
             </main>
 
-            <!-- Custom Footer -->
             <div class="footer" style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; border-top: 1px solid #000; padding-top: 10px;">
                 Page <span class="page"/> / <span class="topage"/>
             </div>
