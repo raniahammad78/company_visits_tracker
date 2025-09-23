@@ -3,10 +3,8 @@ import logging
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 from dateutil.relativedelta import relativedelta
-import math
 
 _logger = logging.getLogger(__name__)
-
 
 class VisitContract(models.Model):
     _name = 'visit.contract'
@@ -27,8 +25,7 @@ class VisitContract(models.Model):
 
     folder_id = fields.Many2one('visit.folder', string='Main Folder', readonly=True, copy=False)
     visits_count = fields.Integer(string='Generated Visits', compute='_compute_visits_count')
-    total_contract_visits = fields.Integer(string="Total Visits in Contract", compute='_compute_total_contract_visits',
-                                           store=True)
+    total_contract_visits = fields.Integer(string="Total Visits in Contract", compute='_compute_total_contract_visits', store=True)
 
     def _compute_visits_count(self):
         for contract in self:
@@ -50,9 +47,7 @@ class VisitContract(models.Model):
             raise UserError(_("The contract must be in a draft state to start it."))
 
         if not self.folder_id:
-            main_folder = self.env['visit.folder'].create({'name': self.partner_id.name})
-            self.folder_id = main_folder.id
-
+            child_folders_vals = []
             delta = relativedelta(self.end_date, self.start_date)
             total_months = delta.years * 12 + delta.months
 
@@ -61,10 +56,14 @@ class VisitContract(models.Model):
                 if current_date > self.end_date:
                     break
                 folder_name = current_date.strftime('%Y-%m (%B)')
-                self.env['visit.folder'].create({
-                    'name': folder_name,
-                    'parent_id': main_folder.id
-                })
+                child_folders_vals.append((0, 0, {'name': folder_name}))
+
+            main_folder = self.env['visit.folder'].create({
+                'name': self.partner_id.name,
+                'child_folder_ids': child_folders_vals,
+            })
+            self.folder_id = main_folder.id
+
         self.state = 'in_progress'
 
     def action_generate_current_month_visits(self):
@@ -121,29 +120,39 @@ class VisitContract(models.Model):
             ])
 
             if existing_visits == 0:
-                # --- CORRECTED VISIT CREATION LOGIC ---
-                # Create visits one-by-one to ensure stability and correct linking.
                 for i in range(contract.visits_per_month):
                     visit = self.env['company.visit'].create({
                         'contract_id': contract.id,
                         'visit_date': today,
                         'folder_id': month_folder.id,
                     })
-                    # Immediately generate the report document for this specific visit
                     if visit and visit.folder_id:
                         visit._action_generate_report_document()
                     else:
                         _logger.warning(f"Failed to create visit with folder link for contract {contract.name}")
-
                 visits_created_total += contract.visits_per_month
         return visits_created_total
 
     def action_open_visits(self):
+        self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
             'name': 'Generated Visits',
             'res_model': 'company.visit',
             'view_mode': 'list,form,calendar,graph,pivot',
             'domain': [('contract_id', '=', self.id)],
+            'target': 'current',
         }
 
+    def action_open_extra_visit_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Add Extra Visits',
+            'res_model': 'extra.visit.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_contract_id': self.id,
+            }
+        }
