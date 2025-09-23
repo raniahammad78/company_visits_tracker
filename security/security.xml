@@ -29,12 +29,12 @@
         <field name="category_id" ref="module_category_visit_tracker"/>
         <!-- Managers have all the rights of a User, plus their own specific rights. -->
         <field name="implied_ids" eval="[(4, ref('group_visit_tracker_user'))]"/>
-        <!-- We also make them administrators for the app -->
+        <!-- make users administrators for the app -->
         <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
     <!--
-        Record Rules (Optional but good practice)
+        Record Rules
         These rules define which records users can see.
         For now, we will let all users in the group see all records, but you could
         later change this to, for example, "Users can only see visits assigned to them."
