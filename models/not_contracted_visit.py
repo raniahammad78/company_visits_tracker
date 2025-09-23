@@ -51,14 +51,33 @@ class NotContractedVisit(models.Model):
         if self.report_document_id:
             return
 
+        # Get main folder
+        main_folder = self.env.ref('company_visit_tracker.folder_not_contracted_visits')
+
+        # Determine and format the month folder name
+        visit_date = self.visit_date or fields.Date.today()
+        folder_name = visit_date.strftime('%Y-%m (%B)')
+
+        # Search for existing month folder
+        month_folder = self.env['visit.folder'].search([
+            ('name', '=', folder_name),
+            ('parent_id', '=', main_folder.id)
+        ], limit=1)
+
+        # If not found, create it
+        if not month_folder:
+            month_folder = self.env['visit.folder'].create({
+                'name': folder_name,
+                'parent_id': main_folder.id,
+            })
+
         report = self.env.ref('company_visit_tracker.action_report_not_contracted_visit')
         pdf_content, _ = report._render_qweb_pdf(report.report_name, self.ids)
         report_name = f'Visit Report - {self.partner_id.name} - {self.visit_date}.pdf'
-        main_folder = self.env.ref('company_visit_tracker.folder_not_contracted_visits')
 
         doc = self.env['visit.document'].create({
             'name': report_name,
-            'folder_id': main_folder.id,
+            'folder_id': month_folder.id,  # Use the month_folder's ID
             'datas': base64.b64encode(pdf_content),
             'not_contracted_visit_id': self.id,
         })
