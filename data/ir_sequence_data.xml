@@ -1,28 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!--
+        This XML file defines sequences for generating unique identifiers
+        for different models (visit contracts, company visits, and non-contracted visits).
+        Sequences ensure that records have automatically generated and unique reference numbers.
+    -->
     <data noupdate="1">
+
+        <!-- ==============================
+             Sequence for Visit Contracts
+             ============================== -->
         <record id="seq_visit_contract" model="ir.sequence">
+            <!-- Display name for the sequence -->
             <field name="name">Visit Contract</field>
+            <!-- Code: technical identifier used in models to call this sequence -->
             <field name="code">visit.contract</field>
+            <!-- Prefix used before the sequence number (e.g., CONTRACT-00001) -->
             <field name="prefix">CONTRACT-</field>
+            <!-- Number of digits (padding) in the sequence (e.g., 00001, 00002, etc.) -->
             <field name="padding">5</field>
+            <!-- Sequence is not linked to a specific company (works in multi-company setups) -->
             <field name="company_id" eval="False"/>
         </record>
 
+        <!-- ==============================
+             Sequence for Company Visits
+             ============================== -->
         <record id="seq_company_visit" model="ir.sequence">
+            <!-- Display name for the sequence -->
             <field name="name">Company Visit</field>
+            <!-- Code used to fetch this sequence in the model -->
             <field name="code">company.visit</field>
-            <field name="prefix">VST-</field>
+            <!-- Prefix is left empty, meaning the sequence will be only numeric -->
+            <field name="prefix"></field>
+            <!-- 6-digit padding (e.g., 000001, 000002, etc.) -->
             <field name="padding">6</field>
+            <!-- Not restricted to a specific company -->
             <field name="company_id" eval="False"/>
         </record>
 
+        <!-- ===========================================
+             Sequence for Non-Contracted Company Visits
+             =========================================== -->
         <record id="seq_not_contracted_visit" model="ir.sequence">
+            <!-- Display name for the sequence -->
             <field name="name">Not Contracted Company Visit</field>
+            <!-- Technical code for fetching the sequence -->
             <field name="code">not.contracted.visit</field>
+            <!-- Prefix NCV- will be added before the number (e.g., NCV-000001) -->
             <field name="prefix">NCV-</field>
+            <!-- 6-digit padding -->
             <field name="padding">6</field>
+            <!-- Sequence applies to all companies -->
             <field name="company_id" eval="False"/>
         </record>
+
     </data>
 </odoo>
