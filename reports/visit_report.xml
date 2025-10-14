@@ -1,15 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Report action definition for company.visit model -->
     <record id="action_report_company_visit" model="ir.actions.report">
+        <!-- Name shown in the UI -->
         <field name="name">Visit Report</field>
+
+        <!-- The model this report is linked to -->
         <field name="model">company.visit</field>
+
+        <!-- Report type: qweb-pdf generates a PDF -->
         <field name="report_type">qweb-pdf</field>
+
+        <!-- Technical name of the report template -->
         <field name="report_name">company_visit_tracker.report_visit_template</field>
+
+        <!-- Template file reference (usually same as report_name) -->
         <field name="report_file">company_visit_tracker.report_visit_template</field>
-        <field name="print_report_name">
-            'Visit Report - %s - %s - %s' % (object.partner_id.name, object.visit_date, object.name)
+
+        <!-- Dynamic filename when downloading the report -->
+        <field name="print_report_name">'Visit Report - %s - %s - %s' % (object.partner_id.name, object.visit_date,
+            object.name)
         </field>
+
+        <!-- Bind report to the company.visit model -->
         <field name="binding_model_id" ref="model_company_visit"/>
+
+        <!-- Binding type: report means it shows up in the Print menu -->
         <field name="binding_type">report</field>
     </record>
 </odoo>

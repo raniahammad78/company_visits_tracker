@@ -6,32 +6,64 @@
                 <h2 style="text-align: center; font-weight: bold; color: navy; margin-bottom: 30px;">SERVICE CALL</h2>
                 <t t-foreach="docs" t-as="doc">
                     <div class="page">
-                        <p><strong style="font-size: 18px; color: #0051b6;">Visit Number:</strong> <span t-field="doc.name" style="font-size: 18px;"/></p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Visit Date:</strong> <span t-field="doc.visit_date" style="font-size: 18px;"/></p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Client Name:</strong> <span t-field="doc.partner_id.name" style="font-size: 18px;"/></p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Address:</strong>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Visit Number:</strong>
+                            <span t-field="doc.name" style="font-size: 18px;"/>
+                        </p>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Visit Date:</strong>
+                            <span t-field="doc.visit_date" style="font-size: 18px;"/>
+                        </p>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Client Name:</strong>
+                            <span t-field="doc.partner_id.name" style="font-size: 18px;"/>
+                        </p>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Address:</strong>
                             <span style="font-size: 18px;">
-                                <span t-field="doc.partner_id.name"/>
-                                <span t-if="doc.partner_id.street">, <span t-field="doc.partner_id.street"/></span>
-                                <span t-if="doc.partner_id.city">, <span t-field="doc.partner_id.city"/></span>
-                                <span t-if="doc.partner_id.state_id">, <span t-field="doc.partner_id.state_id.name"/></span>
-                                <span t-if="doc.partner_id.zip">, <span t-field="doc.partner_id.zip"/></span>
-                                <span t-if="doc.partner_id.country_id">, <span t-field="doc.partner_id.country_id.name"/></span>
+                                <span t-field="doc.partner_id"
+                                      t-options='{"widget": "contact", "fields": ["address"], "no_marker": true}'/>
                             </span>
                         </p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Type of Problem:</strong> <strong style="font-size: 18px;"><span t-field="doc.reason"/></strong></p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Assigned Engineer:</strong> <span t-field="doc.assign_engineer_id.name" style="font-size: 18px;"/></p>
-                        <p><strong style="font-size: 18px; color: #0051b6;">Engineer Comments:</strong> <div style="font-size: 20px;"><span t-field="doc.description"/></div></p>
-                        <br/><br/><br/><br/>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Type of Problem:</strong>
+                            <strong style="font-size: 18px;">
+                                <span t-field="doc.reason"/>
+                            </strong>
+                        </p>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Assigned Engineer:</strong>
+                            <span t-field="doc.assign_engineer_id.name" style="font-size: 18px;"/>
+                        </p>
+                        <p>
+                            <strong style="font-size: 18px; color: #0051b6;">Engineer Comments:</strong>
+                            <div style="font-size: 20px;">
+                                <span t-field="doc.description"/>
+                            </div>
+                        </p>
+                        <br/>
+                        <br/>
+                        <br/>
+                        <br/>
                         <table style="width: 100%; margin-top: 20px;">
                             <tr>
                                 <td style="width: 50%; text-align: center;">
-                                    <p><strong style="font-size: 26px; color: #0051b6;">Engineer Signature:</strong></p>
-                                    <t t-if="doc.engineer_signature"><img t-att-src="'data:image/png;base64,%s' % doc.engineer_signature.decode()" style="width: 200px; height: 100px;"/></t>
+                                    <p>
+                                        <strong style="font-size: 26px; color: #0051b6;">Engineer Signature:</strong>
+                                    </p>
+                                    <t t-if="doc.engineer_signature">
+                                        <img t-att-src="'data:image/png;base64,%s' % doc.engineer_signature.decode()"
+                                             style="width: 200px; height: 100px;"/>
+                                    </t>
                                 </td>
                                 <td style="width: 50%; text-align: center;">
-                                    <p><strong style="font-size: 26px; color: #0051b6;">Client Signature:</strong></p>
-                                    <t t-if="doc.client_signature"><img t-att-src="'data:image/png;base64,%s' % doc.client_signature.decode()" style="width: 200px; height: 100px;"/></t>
+                                    <p>
+                                        <strong style="font-size: 26px; color: #0051b6;">Client Signature:</strong>
+                                    </p>
+                                    <t t-if="doc.client_signature">
+                                        <img t-att-src="'data:image/png;base64,%s' % doc.client_signature.decode()"
+                                             style="width: 200px; height: 100px;"/>
+                                    </t>
                                 </td>
                             </tr>
                         </table>

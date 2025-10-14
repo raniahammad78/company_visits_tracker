@@ -1,12 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!--
+            Report Action Not Contracted Visit Report
+            This report generates a PDF for visits that are NOT tied to a contract.
+            It uses a QWeb template defined in report_not_contracted_visit_template.
+         -->
     <record id="action_report_not_contracted_visit" model="ir.actions.report">
+        <!--  Display name of the report (shown in UI)  -->
         <field name="name">Visit Report</field>
+        <!--  Model this report applies to  -->
         <field name="model">not.contracted.visit</field>
+        <!--  Report type: QWeb PDF rendering  -->
         <field name="report_type">qweb-pdf</field>
+        <!--  QWeb template name (defined separately in report XML/QWeb file)  -->
         <field name="report_name">company_visit_tracker.report_not_contracted_visit_template</field>
+        <!--  Report file name (usually same as report_name)  -->
         <field name="report_file">company_visit_tracker.report_not_contracted_visit_template</field>
+        <!--  Dynamic filename when downloading/printing  -->
         <field name="print_report_name">'Visit Report - %s - %s' % (object.partner_id.name, object.visit_date)</field>
+        <!--  Bind this report to the model so it appears in the "Print" menu  -->
         <field name="binding_model_id" ref="model_not_contracted_visit"/>
         <field name="binding_type">report</field>
     </record>
