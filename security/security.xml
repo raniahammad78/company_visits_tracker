@@ -1,44 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!--
-        This file defines a more advanced security structure for the module.
-        It creates a new application category, two user groups (User and Manager),
-        and record rules to control data visibility.
-    -->
-
-    <!-- Application Category -->
-    <!-- This creates the main category for our security groups in the Users settings screen. -->
+    <!-- Security category for grouping Visit Tracker access rights -->
     <record id="module_category_visit_tracker" model="ir.module.category">
         <field name="name">Visit Tracker</field>
         <field name="description">User access levels for the Company Visit Tracker module</field>
         <field name="sequence">15</field>
     </record>
 
-    <!-- Security Groups -->
-    <!-- Defines a "User" group. They can create and manage their own visits and contracts. -->
+    <!-- Regular User group: inherits Odoo's base user group -->
     <record id="group_visit_tracker_user" model="res.groups">
         <field name="name">User</field>
         <field name="category_id" ref="module_category_visit_tracker"/>
-        <!-- This group inherits permissions from the base internal user group. -->
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 
-    <!-- Defines a "Manager" group. They can oversee all visits and contracts. -->
+    <!-- Manager group: inherits from User group and includes admin/root users by default -->
     <record id="group_visit_tracker_manager" model="res.groups">
         <field name="name">Manager</field>
         <field name="category_id" ref="module_category_visit_tracker"/>
-        <!-- Managers have all the rights of a User, plus their own specific rights. -->
         <field name="implied_ids" eval="[(4, ref('group_visit_tracker_user'))]"/>
-        <!-- make users administrators for the app -->
         <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
-    <!--
-        Record Rules
-        These rules define which records users can see.
-        For now, we will let all users in the group see all records, but you could
-        later change this to, for example, "Users can only see visits assigned to them."
-    -->
+    <!-- Rule: allows Users to see all Visit Contracts -->
     <record id="visit_contract_rule_user" model="ir.rule">
         <field name="name">Visit Contract: User can see all</field>
         <field name="model_id" ref="model_visit_contract"/>
@@ -46,6 +30,7 @@
         <field name="groups" eval="[(4, ref('group_visit_tracker_user'))]"/>
     </record>
 
+    <!-- Rule: allows Users to see all Company Visits -->
     <record id="company_visit_rule_user" model="ir.rule">
         <field name="name">Company Visit: User can see all</field>
         <field name="model_id" ref="model_company_visit"/>
