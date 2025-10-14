@@ -1,24 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- =========================================================
+         ACTION: action_company_visit_sign_requests
+         This window action opens the list of signature requests
+         linked to a specific company visit record.
+         - Used by the stat button in the visit form view.
+         - Filters sign requests by the active visit (active_id).
+         ========================================================= -->
+    <record id="action_company_visit_sign_requests" model="ir.actions.act_window">
+        <field name="name">Signature Requests</field>
+        <field name="res_model">sign.request</field>
+        <field name="view_mode">list,form</field>
+        <!-- Show only sign requests related to the current visit -->
+        <field name="domain">[('company_visit_id', '=', active_id)]</field>
+        <!-- Automatically set default and search context for the active visit -->
+        <field name="context">
+            {'search_default_company_visit_id': active_id, 'default_company_visit_id': active_id}
+        </field>
+    </record>
+
+    <!-- =========================================================
+         FORM VIEW: company.visit.form
+         Main form for managing contracted company visits.
+         Includes workflow buttons, visit details, signatures,
+         engineer assignments, and a chatter for communication.
+         ========================================================= -->
     <record id="view_company_visit_form" model="ir.ui.view">
         <field name="name">company.visit.form</field>
         <field name="model">company.visit</field>
         <field name="arch" type="xml">
             <form string="Company Visit">
+
+                <!-- ========== HEADER SECTION ========== -->
                 <header>
-                    <button name="action_send_report_by_email" string="Send by Email" type="object"
-                            class="btn-secondary"/>
-                    <button name="action_mark_done" string="Mark as Done" type="object" class="btn-primary"
+                    <!-- Send visit report for digital signature -->
+                    <button
+                            name="action_send_report_by_email"
+                            string="Send for Signature"
+                            type="object"
+                            class="btn-primary"
                             invisible="state != 'pending'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="pending,done"/>
+
+                    <!-- Mark the visit as completed -->
+                    <button
+                            name="action_mark_done"
+                            string="Mark as Done"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'pending'"/>
+
+                    <!-- Cancel the visit (disabled if already cancelled) -->
+                    <button
+                            name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state == 'cancelled'"/>
+
+                    <!-- Statusbar: shows visit progress (Pending → Done) -->
+                    <field
+                            name="state"
+                            widget="statusbar"
+                            statusbar_visible="pending,done"/>
                 </header>
+
+                <!-- ========== MAIN BODY SECTION ========== -->
                 <sheet>
+
+                    <!-- Quick access stat button section -->
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Stat Button: View all related signature requests -->
+                        <button
+                                name="%(action_company_visit_sign_requests)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-pencil-square-o">
+                            <field
+                                    name="sign_request_ids"
+                                    widget="statinfo"
+                                    string="Signature Requests"
+                                    help="Displays the number of digital signature requests linked to this visit."/>
+                        </button>
+                    </div>
+
+                    <!-- Visit title -->
                     <div class="oe_title">
                         <h1>
                             <field name="name"/>
                         </h1>
                     </div>
+
+                    <!-- Visit core details (two-column layout) -->
                     <group>
                         <group>
                             <field name="contract_id"/>
@@ -33,13 +105,18 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
+
+                    <!-- Notebook tabs for detailed visit information -->
                     <notebook>
+                        <!-- Tab 1: Visit Details (Problem description, comments) -->
                         <page string="Visit Details">
                             <group>
                                 <field name="reason"/>
                                 <field name="description"/>
                             </group>
                         </page>
+
+                        <!-- Tab 2: Digital Signatures (Engineer & Client) -->
                         <page string="Signatures">
                             <group>
                                 <field name="engineer_signature" widget="signature"/>
@@ -48,30 +125,59 @@
                         </page>
                     </notebook>
                 </sheet>
+
+                <!-- Enables chatter for communication and tracking -->
                 <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- =========================================================
+         LIST VIEW: company.visit.list
+         Displays all visits in a tabular format with indicators
+         for extra visits, visit state, and assigned engineers.
+         ========================================================= -->
     <record id="view_company_visit_list" model="ir.ui.view">
         <field name="name">company.visit.list</field>
         <field name="model">company.visit</field>
         <field name="arch" type="xml">
             <list string="Company Visits" decoration-info="is_extra_visit==True">
+                <!-- Used internally to check if the visit is an extra one -->
                 <field name="is_extra_visit" invisible="1"/>
-                <button name="action_open_visit_form" type="object" icon="fa-plus-circle text-info"
+
+                <!-- Inline icon button for extra visits -->
+                <button
+                        name="action_open_visit_form"
+                        type="object"
+                        icon="fa-plus-circle text-info"
                         invisible="not is_extra_visit"
-                        class="oe_link_icon oe_read_only p-0" aria-label="Extra Visit" title="Extra Visit"/>
+                        class="oe_link_icon oe_read_only p-0"
+                        aria-label="Extra Visit"
+                        title="Extra Visit"/>
+
+                <!-- Core fields displayed in the list -->
                 <field name="name"/>
                 <field name="contract_id"/>
                 <field name="partner_id"/>
                 <field name="visit_date"/>
                 <field name="assign_engineer_id"/>
-                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'pending'" decoration-danger="state == 'cancelled'"/>
+
+                <!-- Colored badge for visit state -->
+                <field
+                        name="state"
+                        widget="badge"
+                        decoration-success="state == 'done'"
+                        decoration-info="state == 'pending'"
+                        decoration-danger="state == 'cancelled'"/>
             </list>
         </field>
     </record>
 
+    <!-- =========================================================
+         CALENDAR VIEW: company.visit.calendar
+         Calendar visualization of visits, color-coded by company.
+         Helps track visit schedules and workload over time.
+         ========================================================= -->
     <record id="view_company_visit_calendar" model="ir.ui.view">
         <field name="name">company.visit.calendar</field>
         <field name="model">company.visit</field>
@@ -83,6 +189,11 @@
         </field>
     </record>
 
+    <!-- =========================================================
+         GRAPH VIEW: company.visit.graph
+         Analytical view for visualizing visit statistics,
+         grouped by partner and state.
+         ========================================================= -->
     <record id="view_company_visit_graph" model="ir.ui.view">
         <field name="name">company.visit.graph</field>
         <field name="model">company.visit</field>
@@ -94,6 +205,11 @@
         </field>
     </record>
 
+    <!-- =========================================================
+         PIVOT VIEW: company.visit.pivot
+         Data pivot table for advanced reporting.
+         Displays visits per month and partner grouped by state.
+         ========================================================= -->
     <record id="view_company_visit_pivot" model="ir.ui.view">
         <field name="name">company.visit.pivot</field>
         <field name="model">company.visit</field>
@@ -105,4 +221,5 @@
             </pivot>
         </field>
     </record>
+
 </odoo>

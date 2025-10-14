@@ -1,43 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
+    <!-- =========================================================
+         FORM VIEW: visit.contract.form
+         This form view defines the user interface for managing
+         Visit Contract records. It includes buttons for workflow
+         actions (start, generate visits, add extra visits),
+         a statusbar for state tracking, and key contract details.
+         ========================================================= -->
     <record id="view_visit_contract_form" model="ir.ui.view">
         <field name="name">visit.contract.form</field>
         <field name="model">visit.contract</field>
         <field name="arch" type="xml">
             <form string="Visit Contract">
+
+                <!-- ========== HEADER SECTION ========== -->
                 <header>
-                    <button name="action_start_contract" string="Start Contract" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <!-- Button: Start the contract (only visible in Draft state) -->
+                    <button
+                            name="action_start_contract"
+                            string="Start Contract"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
 
-                    <button name="action_open_extra_visit_wizard" string="Add Extra Visits" type="object" class="btn-secondary" invisible="state != 'in_progress'"/>
+                    <!-- Button: Add extra visits (only visible while contract is In Progress) -->
+                    <button
+                            name="action_open_extra_visit_wizard"
+                            string="Add Extra Visits"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'in_progress'"/>
 
-                    <button name="action_generate_current_month_visits" string="Generate Current Month's Visits" type="object" class="btn-secondary" invisible="state != 'in_progress'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done"/>
+                    <!-- Button: Generate visits for the current month -->
+                    <button
+                            name="action_generate_current_month_visits"
+                            string="Generate Current Month's Visits"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'in_progress'"/>
+
+                    <!-- Contract statusbar: Tracks the workflow states -->
+                    <field
+                            name="state"
+                            widget="statusbar"
+                            statusbar_visible="draft,in_progress,done"/>
                 </header>
+
+                <!-- ========== MAIN CONTENT AREA ========== -->
                 <sheet>
+
+                    <!-- Quick Access Buttons (Stat Info Box) -->
                     <div class="oe_button_box" name="button_box">
-                         <button name="action_open_visits" type="object" class="oe_stat_button" icon="fa-tasks">
-                            <field name="visits_count" widget="statinfo" string="Generated Visits"/>
+                        <!-- Stat Button: Open all generated visits for this contract -->
+                        <button
+                                name="action_open_visits"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-tasks">
+                            <field
+                                    name="visits_count"
+                                    widget="statinfo"
+                                    string="Generated Visits"/>
                         </button>
                     </div>
+
+                    <!-- Title Field -->
                     <div class="oe_title">
-                        <h1><field name="name"/></h1>
+                        <h1>
+                            <field name="name"/>
+                        </h1>
                     </div>
+
+                    <!-- ========== CONTRACT DETAILS ========== -->
                     <group>
+                        <!-- Left Column -->
                         <group>
                             <field name="partner_id"/>
                             <field name="visits_per_month"/>
-                             <field name="total_contract_visits" readonly="1"/>
+                            <field name="total_contract_visits" readonly="1"/>
                         </group>
+
+                        <!-- Right Column -->
                         <group>
                             <field name="start_date"/>
                             <field name="end_date"/>
                         </group>
                     </group>
                 </sheet>
+
+                <!-- Built-in chatter for tracking activities and messages -->
                 <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- =========================================================
+         LIST VIEW: visit.contract.list
+         This tree/list view displays multiple Visit Contracts
+         in a concise format for easy browsing and management.
+         ========================================================= -->
     <record id="view_visit_contract_list" model="ir.ui.view">
         <field name="name">visit.contract.list</field>
         <field name="model">visit.contract</field>
@@ -53,9 +115,15 @@
         </field>
     </record>
 
+    <!-- =========================================================
+         ACTION WINDOW: action_visit_contract
+         Defines the main action to open the Visit Contract menu.
+         This allows switching between List, Form, and Kanban views.
+         ========================================================= -->
     <record id="action_visit_contract" model="ir.actions.act_window">
         <field name="name">Contracts</field>
         <field name="res_model">visit.contract</field>
         <field name="view_mode">list,form,kanban</field>
     </record>
+
 </odoo>

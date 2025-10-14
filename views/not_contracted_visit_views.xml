@@ -1,20 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- ===============================================================
+         ACTION: Signature Requests for Non-Contracted Visits
+         This window action opens the list/form views of `sign.request`
+         records linked to the currently active non-contracted visit.
+         It allows users to easily access all signature requests related
+         to a specific visit.
+    ================================================================ -->
+    <record id="action_not_contracted_visit_sign_requests" model="ir.actions.act_window">
+        <field name="name">Signature Requests</field>
+        <field name="res_model">sign.request</field>
+        <field name="view_mode">list,form</field>
+
+        <!-- Filter only signature requests related to the current visit -->
+        <field name="domain">[('not_contracted_visit_id', '=', active_id)]</field>
+
+        <!-- Context: sets default and search filters for the current visit -->
+        <field name="context">
+            {
+            'search_default_not_contracted_visit_id': active_id,
+            'default_not_contracted_visit_id': active_id
+            }
+        </field>
+    </record>
+
+    <!-- ===============================================================
+         FORM VIEW: Non-Contracted Company Visit
+         The main form used to manage and track details of visits that
+         are NOT part of an active contract. Includes:
+         - Visit info
+         - Assigned engineer
+         - Partner details
+         - Signature fields
+         - Buttons for workflow actions
+    ================================================================ -->
     <record id="view_not_contracted_visit_form" model="ir.ui.view">
         <field name="name">not.contracted.visit.form</field>
         <field name="model">not.contracted.visit</field>
         <field name="arch" type="xml">
             <form string="Not Contracted Company Visit">
+
+                <!-- Header Section: Workflow Buttons + Statusbar -->
                 <header>
-                    <button name="action_print_report" string="Print Report" type="object" class="btn-primary"/>
-                    <button name="action_mark_done" string="Mark as Done" type="object" class="btn-secondary" invisible="state != 'pending'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="pending,done"/>
+                    <!-- Send the visit report for signature -->
+                    <button name="action_send_report_for_signature"
+                            string="Request Signature"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'pending'"/>
+
+                    <!-- Print the visit report -->
+                    <button name="action_print_report"
+                            string="Print Report"
+                            type="object"
+                            class="btn-secondary"/>
+
+                    <!-- Mark the visit as completed -->
+                    <button name="action_mark_done"
+                            string="Mark as Done"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'pending'"/>
+
+                    <!-- Cancel the visit (visible only if not already cancelled) -->
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            invisible="state == 'cancelled'"/>
+
+                    <!-- Statusbar showing workflow state progression -->
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="pending,done"/>
                 </header>
+
+                <!-- Body Section: Visit Information -->
                 <sheet>
-                    <div class="oe_title">
-                        <h1><field name="name"/></h1>
+                    <!-- Top Button Box (Stat Button for Signature Requests) -->
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Quick access to signature requests related to this visit -->
+                        <button name="%(action_not_contracted_visit_sign_requests)d"
+                                type="action"
+                                class="oe_stat_button"
+                                icon="fa-pencil-square-o">
+                            <field name="sign_request_ids"
+                                   widget="statinfo"
+                                   string="Signature Requests"
+                                   help="View all related signature requests for this visit"/>
+                        </button>
                     </div>
+
+                    <!-- Title / Visit Name -->
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+
+                    <!-- Grouped Fields: Partner, Address, Engineer, Company -->
                     <group>
                         <group>
                             <field name="partner_id"/>
@@ -26,13 +109,18 @@
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
+
+                    <!-- Notebook Tabs -->
                     <notebook>
+                        <!-- Tab 1: Visit Details -->
                         <page string="Visit Details">
                             <group>
                                 <field name="reason"/>
                                 <field name="description"/>
                             </group>
                         </page>
+
+                        <!-- Tab 2: Signature Fields -->
                         <page string="Signatures">
                             <group>
                                 <field name="engineer_signature" widget="signature"/>
@@ -41,28 +129,50 @@
                         </page>
                     </notebook>
                 </sheet>
+
+                <!-- Chatter for notes, messages, and attachments -->
                 <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- ===============================================================
+         LIST VIEW: Non-Contracted Company Visits
+         Displays a summarized table of visits with key information such
+         as name, date, engineer, and state. Uses colored badges to
+         visually represent status.
+    ================================================================ -->
     <record id="view_not_contracted_visit_list" model="ir.ui.view">
         <field name="name">not.contracted.visit.list</field>
         <field name="model">not.contracted.visit</field>
         <field name="arch" type="xml">
             <list string="Not Contracted Company Visits">
+
+                <!-- Core visit fields shown in list view -->
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="visit_date"/>
                 <field name="assign_engineer_id"/>
-                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'pending'" decoration-danger="state == 'cancelled'"/>
+
+                <!-- State displayed as a badge for quick visual cues -->
+                <field name="state"
+                       widget="badge"
+                       decoration-success="state == 'done'"
+                       decoration-info="state == 'pending'"
+                       decoration-danger="state == 'cancelled'"/>
             </list>
         </field>
     </record>
 
+    <!-- ===============================================================
+         ACTION: Open Non-Contracted Company Visits
+         Main action for accessing all non-contracted visit records.
+         Opens in list view by default, with form view available.
+    ================================================================ -->
     <record id="action_not_contracted_visit" model="ir.actions.act_window">
         <field name="name">Not Contracted Company</field>
         <field name="res_model">not.contracted.visit</field>
         <field name="view_mode">list,form</field>
     </record>
+
 </odoo>
