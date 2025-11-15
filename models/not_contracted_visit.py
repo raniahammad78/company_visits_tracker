@@ -2,19 +2,15 @@
 from odoo import models, fields, api, _ as _t
 import base64
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class NotContractedVisit(models.Model):
     """
     Model: not.contracted.visit
-    ----------------------------------
-    This model is used to track and manage service visits made to companies that
-    do NOT have an active maintenance or service contract.
-
-    Each record represents one visit entry, including details like the company visited,
-    assigned engineer, visit reason, engineer/client signatures, and generated PDF report.
-
-    It also integrates with Odoo Sign to send visit reports for digital signatures.
+    ... (rest of comments) ...
     """
     _name = 'not.contracted.visit'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -189,6 +185,59 @@ class NotContractedVisit(models.Model):
         # Link generated document back to this visit
         self.write({'report_document_id': doc.id})
 
+    # === NEW METHOD: Save Signed Report ===
+    def _save_signed_report_to_folder(self, signed_pdf_data):
+        """
+        *** MODIFIED ***
+        Once a sign request is completed, this method saves the signed PDF
+        into a new company-specific folder under 'Signed Reports'.
+
+        This method now accepts the PDF data directly from the 'write'
+        trigger to avoid a database transaction timing issue.
+        """
+        self.ensure_one()
+
+        if not signed_pdf_data:
+            _logger.warning(f"Save report called for non-contracted visit {self.name} but no PDF data was provided.")
+            return
+
+        if not self.partner_id:
+            _logger.warning(f"Cannot save signed report for non-contracted visit {self.name}: No partner assigned")
+            return
+
+        try:
+            # 1. Find the main "Signed Reports" folder
+            main_signed_folder = self.env.ref('company_visit_tracker.folder_signed_reports', raise_if_not_found=True)
+
+            # 2. Find or create the company-specific sub-folder (e.g., "Signed Reports / Client A")
+            partner_folder = self.env['visit.folder'].search([
+                ('name', '=', self.partner_id.name),
+                ('parent_id', '=', main_signed_folder.id)
+            ], limit=1)
+
+            if not partner_folder:
+                partner_folder = self.env['visit.folder'].create({
+                    'name': self.partner_id.name,
+                    'parent_id': main_signed_folder.id,
+                })
+
+            # 3. REMOVED: Search for sign.request (we now pass the data in)
+
+            # 4. Create the new visit.document record
+            report_name = f'Signed Visit Report - {self.name}.pdf'
+
+            self.env['visit.document'].create({
+                'name': report_name,
+                'folder_id': partner_folder.id,
+                'datas': signed_pdf_data,  # Use the passed-in data
+                'not_contracted_visit_id': self.id,
+            })
+            _logger.info(
+                f"Successfully saved signed report for non-contracted visit {self.name} to folder {partner_folder.name}.")
+
+        except Exception as e:
+            _logger.warning(f"Failed to save signed report for non-contracted visit {self.name}: {str(e)}")
+
     # === ACTIONS ===
     def action_print_report(self):
         """Triggers Odoo to generate and download the visit report as PDF."""
@@ -203,8 +252,7 @@ class NotContractedVisit(models.Model):
         """
         Generates a fresh version of the visit report, creates a Sign Template,
         and sends a digital signature request directly to the client.
-
-        This is used for collecting client signatures after service completion.
+        ... (rest of comments) ...
         """
         self.ensure_one()
 
