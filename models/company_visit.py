@@ -2,19 +2,14 @@
 from odoo import models, fields, api, _ as _t
 import base64
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 # ========================================================================
 # MODEL: CompanyVisit
-# ------------------------------------------------------------------------
-# This model manages company visit records linked to a service contract.
-# Each record represents one maintenance or inspection visit.
-# The model integrates:
-#   - Contract & Partner details (auto-fetched)
-#   - Report generation (PDF)
-#   - Digital signature workflow via Odoo Sign
-#   - State management (Pending → Done → Cancelled)
-#   - Automatic numbering and folder organization
+# ... (rest of class comments) ...
 # ========================================================================
 
 class CompanyVisit(models.Model):
@@ -216,54 +211,60 @@ class CompanyVisit(models.Model):
 
         except Exception as e:
             # Log any errors without blocking creation
-            import logging
-            _logger = logging.getLogger(__name__)
             _logger.warning(f"Failed to generate report document for visit {self.name}: {str(e)}")
 
     # --------------------------------------------------------------------
     # SIGNATURE MANAGEMENT
     # --------------------------------------------------------------------
-    def _save_signed_report_to_folder(self):
+    def _save_signed_report_to_folder(self, signed_pdf_data):
         """
-        Once a sign request is completed, this method saves the signed PDF
-        to the same document folder, replacing or adding the signed version.
+        MODIFIED: Once a sign request is completed, this method saves the
+        signed PDF into a new company-specific folder under 'Signed Reports'.
+
+        This method now accepts the PDF data directly from the 'write'
+        trigger to avoid a database transaction timing issue.
         """
         self.ensure_one()
 
-        if not self.folder_id:
-            import logging
-            _logger = logging.getLogger(__name__)
-            _logger.warning(f"Cannot save signed report for visit {self.name}: No folder assigned")
+        if not signed_pdf_data:
+            _logger.warning(f"Save report called for visit {self.name} but no PDF data was provided.")
             return
 
-        # Get the latest completed (signed) sign request
-        completed_sign_request = self.env['sign.request'].search([
-            ('company_visit_id', '=', self.id),
-            ('state', '=', 'signed')
-        ], limit=1, order='id desc')
-
-        if not completed_sign_request:
+        if not self.partner_id:
+            _logger.warning(f"Cannot save signed report for visit {self.name}: No partner assigned")
             return
 
-        # Extract the signed PDF
-        if completed_sign_request.completed_document:
-            signed_pdf = completed_sign_request.completed_document
+        try:
+            # 1. Find the main "Signed Reports" folder
+            main_signed_folder = self.env.ref('company_visit_tracker.folder_signed_reports', raise_if_not_found=True)
+
+            # 2. Find or create the company-specific sub-folder (e.g., "Signed Reports / Client A")
+            partner_folder = self.env['visit.folder'].search([
+                ('name', '=', self.partner_id.name),
+                ('parent_id', '=', main_signed_folder.id)
+            ], limit=1)
+
+            if not partner_folder:
+                partner_folder = self.env['visit.folder'].create({
+                    'name': self.partner_id.name,
+                    'parent_id': main_signed_folder.id,
+                })
+
+            # 3. REMOVED: Search for sign.request (we now pass the data in)
+
+            # 4. Create the new visit.document record
             report_name = f'Signed Visit Report - {self.name}.pdf'
 
-            # Update existing document or create a new one
-            if self.report_document_id:
-                self.report_document_id.write({
-                    'name': report_name,
-                    'datas': signed_pdf,
-                })
-            else:
-                doc = self.env['visit.document'].create({
-                    'name': report_name,
-                    'folder_id': self.folder_id.id,
-                    'datas': signed_pdf,
-                    'visit_id': self.id,
-                })
-                self.write({'report_document_id': doc.id})
+            self.env['visit.document'].create({
+                'name': report_name,
+                'folder_id': partner_folder.id,
+                'datas': signed_pdf_data,  # Use the passed-in data
+                'visit_id': self.id,
+            })
+            _logger.info(f"Successfully saved signed report for visit {self.name} to folder {partner_folder.name}.")
+
+        except Exception as e:
+            _logger.warning(f"Failed to save signed report for visit {self.name}: {str(e)}")
 
     # --------------------------------------------------------------------
     # ACTIONS (Report Printing / Sending / Opening)
@@ -328,7 +329,7 @@ class CompanyVisit(models.Model):
             'responsible_id': ClientRole.id,
             'page': 1,
             # Adjust X and Y positions to move it inside the frame
-            'posX': 0.62,  
+            'posX': 0.62,
             'posY': 0.58,
             # Adjust width/height to fit inside frame
             'width': 0.24,
@@ -388,11 +389,10 @@ class CompanyVisit(models.Model):
 
 
 # ========================================================================
-# MODEL EXTENSION: SignRequest
+# MODEL EXTENSION: SignRequest (CONSOLIDATED)
 # ------------------------------------------------------------------------
-# Extends Odoo's sign.request model to link sign requests directly
-# to specific Company Visits. Automatically syncs status updates
-# and triggers report saving when a signature is completed.
+# Extends Odoo's sign.request model to link sign requests to BOTH
+# visit types. Automatically syncs status and triggers report saving.
 # ========================================================================
 
 class SignRequest(models.Model):
@@ -405,22 +405,57 @@ class SignRequest(models.Model):
         help="The visit record linked to this signature request."
     )
 
+    # ADDED: Link to non-contracted visits
+    not_contracted_visit_id = fields.Many2one(
+        'not.contracted.visit',
+        string='Related Non-Contracted Visit',
+        ondelete='set null',
+        help="Links this signature request to a non-contracted visit record."
+    )
+
     def write(self, vals):
         """
-        Override: detects when a sign request is marked 'signed' and
-        automatically saves the signed document to the visit folder
-        and updates the visit status.
+        *** THIS IS THE FINAL, CORRECTED METHOD ***
+
+        This method is triggered when any field on the sign.request
+        is changed.
+
+        The NEW TRIGGER is: 'completed_document'.
+        This is the only reliable way to know the document is
+        ready. The 'state' field can be unreliable.
         """
+        # Call the parent method first
         result = super(SignRequest, self).write(vals)
 
-        # If the sign request was just completed
-        if vals.get('state') == 'signed':
+        # Check if the 'completed_document' was just added to the record
+        if vals.get('completed_document'):
+            _logger.info(f"SignRequest write trigger: 'completed_document' was added for records {self.ids}")
             for record in self:
-                if record.company_visit_id:
-                    record.company_visit_id._save_signed_report_to_folder()
+                # We know the document data is in 'vals', but let's
+                # use the record's field for simplicity.
+                signed_document = record.completed_document
 
-                    # Optionally mark visit as done
+                # Double-check: if the state isn't signed, Odoo might
+                # be in a weird state, but we'll trust the document.
+                if record.state != 'signed':
+                    _logger.warning(
+                        f"SignRequest {record.id} has a completed document but state is '{record.state}'. Proceeding to save anyway.")
+
+                # Handle Contracted Visits
+                if record.company_visit_id:
+                    _logger.info(f"Processing signed report for Contracted Visit: {record.company_visit_id.name}...")
+                    record.company_visit_id._save_signed_report_to_folder(signed_document)
                     if record.company_visit_id.state == 'pending':
                         record.company_visit_id.action_mark_done()
+                        _logger.info(f"Marked visit {record.company_visit_id.name} as Done.")
+
+                # Handle Non-Contracted Visits
+                if record.not_contracted_visit_id:
+                    _logger.info(
+                        f"Processing signed report for Non-Contracted Visit: {record.not_contracted_visit_id.name}...")
+                    record.not_contracted_visit_id._save_signed_report_to_folder(signed_document)
+                    if record.not_contracted_visit_id.state == 'pending':
+                        record.not_contracted_visit_id.action_mark_done()
+                        _logger.info(f"Marked visit {record.not_contracted_visit_id.name} as Done.")
 
         return result
