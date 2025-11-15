@@ -2,25 +2,15 @@
 <odoo>
     <data noupdate="1">
 
-        <!-- ===================================================
-             Root Folder for "Not Contracted Visits"
-             ===================================================
-             This record creates a main folder inside the
-             `visit.folder` model to organize all visits
-             that are not linked to a contract.
-
-             Fields explained:
-             - name: Display name of the folder.
-             - parent_id: False means this is a top-level folder
-                          (no parent folder).
-             - is_not_contracted_folder: Custom boolean field used
-                          to flag this folder specifically as the
-                          default "Not Contracted Visits" folder.
-        -->
         <record id="folder_not_contracted_visits" model="visit.folder">
             <field name="name">Not Contracted Visits</field>
             <field name="parent_id" eval="False"/>
             <field name="is_not_contracted_folder">True</field>
+        </record>
+
+        <record id="folder_signed_reports" model="visit.folder">
+            <field name="name">Signed Reports</field>
+            <field name="parent_id" eval="False"/>
         </record>
 
     </data>
