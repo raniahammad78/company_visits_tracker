@@ -2,37 +2,21 @@
 <odoo>
     <data noupdate="1">
 
-        <!-- =========================================================
-             Scheduled Action (ir.cron) for Generating Visits & Reports
-             =========================================================
-             This cron job automatically triggers a Python method
-             (`_cron_generate_visits_and_reports`) inside the
-             `visit.contract` model.
-
-             Purpose:
-             - To generate monthly visits and their reports
-               without manual intervention.
-
-             Field details:
-             - id: Technical identifier of this cron record.
-             - name: Human-readable name for the scheduled action.
-             - model_id: The model on which the cron will execute.
-                         Here it references `visit.contract`.
-             - state: "code" means the cron will execute custom
-                      Python code (instead of calling a server action).
-             - code: The actual Python code to run.
-                     It calls the method defined in the model.
-             - user_id: User under which the cron runs.
-                        (Here it’s set to the superuser `admin/root`).
-             - interval_number & interval_type: Defines how often
-                        this action runs.
-                        Currently: every **1 day**.
-        -->
         <record id="ir_cron_generate_visits_and_reports" model="ir.cron">
             <field name="name">Visit Tracker: Generate Monthly Visits and Reports</field>
             <field name="model_id" ref="model_visit_contract"/>
             <field name="state">code</field>
             <field name="code">model._cron_generate_visits_and_reports()</field>
+            <field name="user_id" ref="base.user_root"/>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+        </record>
+
+        <record id="ir_cron_check_contract_expiry" model="ir.cron">
+            <field name="name">Visit Tracker: Check Contract Expiry</field>
+            <field name="model_id" ref="model_visit_contract"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_contract_expiry_reminder()</field>
             <field name="user_id" ref="base.user_root"/>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>

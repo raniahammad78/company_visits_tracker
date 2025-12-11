@@ -7,11 +7,5 @@
             <field name="parent_id" eval="False"/>
             <field name="is_not_contracted_folder">True</field>
         </record>
-
-        <record id="folder_signed_reports" model="visit.folder">
-            <field name="name">Signed Reports</field>
-            <field name="parent_id" eval="False"/>
-        </record>
-
     </data>
 </odoo>
