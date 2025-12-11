@@ -20,8 +20,9 @@
     'category': 'Services/Project',
     'version': '18.0.2.0.0',
     'sequence': 1,
-    'depends': ['base', 'mail', 'portal','web','sign','account'],
+    'depends': ['base', 'mail', 'portal', 'web', 'sign', 'account', 'web_gantt'],
     'data': [
+        "views/dashboard_action.xml",
         "reports/not_contracted_report_template.xml",
         "data/folder_data.xml",
         "reports/not_contracted_report.xml",
@@ -37,7 +38,12 @@
         "reports/visit_report_template.xml",
         "reports/visit_report.xml",
         "security/ir.model.access.csv",
-],
+    ],
+    'assets': {
+        'web.assets_backend': [
+            'company_visit_tracker/static/src/dashboard/visit_dashboard.xml',
+        ],
+    },
     'installable': True,
     'application': True,
     'license': 'LGPL-3',
