@@ -1,32 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- ================== KANBAN VIEW ================== -->
+
     <record id="view_visit_folder_kanban" model="ir.ui.view">
         <field name="name">visit.folder.kanban</field>
         <field name="model">visit.folder</field>
         <field name="arch" type="xml">
-            <kanban class="o_kanban_mobile">
+            <kanban class="o_kanban_mobile" sample="1">
                 <field name="name"/>
                 <field name="document_count"/>
+                <field name="is_company_folder"/>
+                <field name="is_not_contracted_folder"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div t-attf-class="oe_kanban_global_click">
-                            <!-- Folder icon -->
-                            <div class="o_kanban_image">
-                                <i class="fa fa-folder fa-3x" style="color: #f0ad4e;"/>
-                            </div>
-                            <!-- Folder name + count -->
-                            <div class="oe_kanban_details">
-                                <strong class="o_kanban_record_title">
-                                    <field name="name"/>
-                                </strong>
-                                <div class="o_kanban_record_bottom">
-                                    <div class="oe_kanban_bottom_left">
-                                        <span>
-                                            <t t-esc="record.document_count.raw_value"/>
-                                            Reports
-                                        </span>
+                        <t t-set="bg_style"
+                           t-value="'background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fed7aa;'"/>
+                        <t t-set="icon_color" t-value="'#f97316'"/>
+                        <t t-set="icon_class" t-value="'fa-folder-open'"/>
+
+                        <t t-if="record.is_company_folder.raw_value">
+                            <t t-set="bg_style"
+                               t-value="'background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe;'"/>
+                            <t t-set="icon_color" t-value="'#2563eb'"/>
+                            <t t-set="icon_class" t-value="'fa-building'"/>
+                        </t>
+
+                        <t t-elif="record.is_not_contracted_folder.raw_value">
+                            <t t-set="bg_style"
+                               t-value="'background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 1px solid #ddd6fe;'"/>
+                            <t t-set="icon_color" t-value="'#7c3aed'"/>
+                            <t t-set="icon_class" t-value="'fa-building'"/>
+                        </t>
+
+                        <div t-attf-class="oe_kanban_global_click shadow-sm rounded-3 mb-2 p-0"
+                             t-att-style="bg_style + ' min-height: 110px; position: relative; overflow: hidden; transition: all 0.2s;'"
+                             onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.1)';"
+                             onmouseout="this.style.transform='translateY(0px)'; this.style.boxShadow='0 1px 2px 0 rgba(0, 0, 0, 0.05)';">
+
+                            <i t-attf-class="fa #{icon_class}"
+                               t-att-style="'position: absolute; right: -15px; bottom: -15px; font-size: 6rem; opacity: 0.05; transform: rotate(-10deg); color: ' + icon_color + ';'"/>
+
+                            <div class="d-flex flex-column justify-content-between h-100 p-3"
+                                 style="position: relative; z-index: 2;">
+
+                                <div class="d-flex align-items-start">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm bg-white"
+                                         style="width: 42px; height: 42px; min-width: 42px;">
+                                        <i t-attf-class="fa #{icon_class}"
+                                           t-att-style="'font-size: 1.2rem; color: ' + icon_color + ';'"/>
                                     </div>
+                                    <div class="overflow-hidden">
+                                        <h5 class="mb-0 fw-bold text-truncate text-dark" style="font-size: 1.1rem;">
+                                            <field name="name"/>
+                                        </h5>
+                                        <t t-if="record.is_company_folder.raw_value">
+                                            <span class="text-muted small">Client Folder</span>
+                                        </t>
+                                        <t t-elif="record.is_not_contracted_folder.raw_value">
+                                            <span class="text-muted small">General</span>
+                                        </t>
+                                        <t t-else="">
+                                            <span class="text-muted small">Monthly Records</span>
+                                        </t>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3 d-flex align-items-center justify-content-between">
+                                    <div class="d-inline-flex align-items-center px-3 py-1 rounded-pill bg-white border shadow-sm">
+                                        <i class="fa fa-file-text-o me-2 text-secondary"/>
+                                        <span class="fw-bold text-dark">
+                                            <t t-esc="record.document_count.value"/>
+                                        </span>
+                                        <span class="ms-1 small text-muted">Reports</span>
+                                    </div>
+
+                                    <i class="fa fa-arrow-right text-muted opacity-50"/>
                                 </div>
                             </div>
                         </div>
@@ -36,48 +83,54 @@
         </field>
     </record>
 
-    <!-- ================== FORM VIEW ================== -->
     <record id="view_visit_folder_form" model="ir.ui.view">
         <field name="name">visit.folder.form</field>
         <field name="model">visit.folder</field>
         <field name="arch" type="xml">
-            <!-- Disable create/edit for folders, they are managed by automation -->
             <form create="false" edit="false">
-                <sheet>
-                    <!-- Technical flags -->
+                <header>
                     <field name="is_company_folder" invisible="1"/>
                     <field name="is_not_contracted_folder" invisible="1"/>
-
-                    <!-- Folder name -->
-                    <div class="oe_title">
-                        <h1>
-                            <field name="name" readonly="1"/>
+                </header>
+                <sheet>
+                    <div class="oe_title mb-4">
+                        <h1 class="d-flex align-items-center text-dark">
+                            <i t-attf-class="fa #{is_company_folder or is_not_contracted_folder ? 'fa-building-o text-primary' : 'fa-folder-open-o text-warning'} me-3"/>
+                            <field name="name" readonly="1" class="text-break"/>
                         </h1>
                     </div>
 
-                    <!-- COMPANY FOLDERS (root company folders) -->
-                    <div invisible="not is_company_folder or is_not_contracted_folder">
-                        <h2>Monthly Folders</h2>
-                        <field name="child_folder_ids" nolabel="1">
+                    <div invisible="not is_company_folder and not is_not_contracted_folder">
+                        <div class="d-flex align-items-center mb-3">
+                            <h3 class="fw-bold text-muted text-uppercase mb-0"
+                                style="font-size: 0.85rem; letter-spacing: 1px;">
+                                <i class="fa fa-calendar me-2"/>Monthly Folders
+                            </h3>
+                            <div class="flex-grow-1 ms-3 border-bottom"/>
+                        </div>
+
+                        <field name="child_folder_ids" mode="kanban">
                             <kanban>
                                 <field name="name"/>
                                 <field name="document_count"/>
                                 <templates>
                                     <t t-name="kanban-box">
-                                        <div t-attf-class="oe_kanban_global_click">
-                                            <div class="o_kanban_image">
-                                                <i class="fa fa-calendar fa-3x" style="color: #5bc0de;"/>
+                                        <div class="oe_kanban_global_click shadow-sm rounded-3 mb-2 p-3 d-flex align-items-center border"
+                                             style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border-color: #fed7aa;">
+
+                                            <div class="bg-white rounded-circle p-2 me-3 d-flex justify-content-center align-items-center shadow-sm"
+                                                 style="width: 40px; height: 40px; color: #f97316;">
+                                                <i class="fa fa-folder-open fa-lg"/>
                                             </div>
-                                            <div class="oe_kanban_details">
-                                                <strong>
+                                            <div class="overflow-hidden">
+                                                <strong class="d-block text-truncate text-dark"
+                                                        style="font-size: 1.05rem;">
                                                     <field name="name"/>
                                                 </strong>
-                                                <div>
-                                                    <span>
-                                                        <t t-esc="record.document_count.raw_value"/>
-                                                        Reports
-                                                    </span>
-                                                </div>
+                                                <small class="text-muted">
+                                                    <field name="document_count"/>
+                                                    Files
+                                                </small>
                                             </div>
                                         </div>
                                     </t>
@@ -86,62 +139,43 @@
                         </field>
                     </div>
 
-                    <!-- NON-COMPANY FOLDERS (contain visit reports directly) -->
                     <div invisible="is_company_folder or is_not_contracted_folder">
-                        <h2>Visit Reports to Complete</h2>
+
+                        <div class="d-flex align-items-center mb-3 mt-2">
+                            <h3 class="fw-bold text-muted text-uppercase mb-0"
+                                style="font-size: 0.85rem; letter-spacing: 1px;">
+                                <i class="fa fa-tasks me-2"/>Pending Visits
+                            </h3>
+                            <div class="flex-grow-1 ms-3 border-bottom"/>
+                        </div>
+
                         <field name="visit_ids" nolabel="1">
-                            <list decoration-info="is_extra_visit==True">
-                                <!-- Show icon if it's an extra visit -->
+                            <list decoration-info="is_extra_visit==True" decoration-success="state=='done'"
+                                  decoration-muted="state=='cancelled'">
                                 <field name="is_extra_visit" invisible="1"/>
-                                <button name="action_open_visit_form" type="object" icon="fa-plus-circle text-info"
-                                        invisible="not is_extra_visit"/>
-                                <!-- Visit info -->
+                                <field name="state" invisible="1"/>
+                                <button name="action_open_visit_form" type="object" icon="fa-arrow-right" title="Open"
+                                        class="btn btn-link text-primary"/>
                                 <field name="name"/>
                                 <field name="visit_date"/>
-                                <field name="assign_engineer_id"/>
-                                <field name="reason"/>
-                                <field name="state"/>
+                                <field name="assign_engineer_id" widget="many2one_avatar_user"/>
+                                <field name="state" widget="badge"/>
                             </list>
                         </field>
-                    </div>
 
-                    <!-- NOT CONTRACTED ROOT FOLDER (monthly subfolders) -->
-                    <div invisible="not is_not_contracted_folder or parent_id">
-                        <h2>Monthly Folders</h2>
-                        <field name="child_folder_ids" nolabel="1">
-                            <kanban>
-                                <field name="name"/>
-                                <field name="document_count"/>
-                                <templates>
-                                    <t t-name="kanban-box">
-                                        <div t-attf-class="oe_kanban_global_click">
-                                            <div class="o_kanban_image">
-                                                <i class="fa fa-calendar fa-3x" style="color: #5bc0de;"/>
-                                            </div>
-                                            <div class="oe_kanban_details">
-                                                <strong>
-                                                    <field name="name"/>
-                                                </strong>
-                                                <div>
-                                                    <span>
-                                                        <t t-esc="record.document_count.raw_value"/>
-                                                        Reports
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </t>
-                                </templates>
-                            </kanban>
-                        </field>
-                    </div>
+                        <div class="d-flex align-items-center mb-3 mt-5">
+                            <h3 class="fw-bold text-muted text-uppercase mb-0"
+                                style="font-size: 0.85rem; letter-spacing: 1px;">
+                                <i class="fa fa-file-pdf-o me-2"/>Generated Reports
+                            </h3>
+                            <div class="flex-grow-1 ms-3 border-bottom"/>
+                        </div>
 
-                    <!-- CHILD NOT CONTRACTED FOLDER (holds reports) -->
-                    <div invisible="not parent_id or not parent_id.is_not_contracted_folder">
-                        <h2>Visit Reports</h2>
                         <field name="document_ids" nolabel="1">
                             <list>
                                 <field name="name"/>
+                                <field name="mimetype" optional="hide"/>
+                                <field name="datas" widget="binary" filename="name" string="Download"/>
                             </list>
                         </field>
                     </div>
@@ -151,12 +185,11 @@
         </field>
     </record>
 
-    <!-- ================== ACTION ================== -->
     <record id="action_visit_folder" model="ir.actions.act_window">
         <field name="name">Document Folders</field>
         <field name="res_model">visit.folder</field>
         <field name="view_mode">kanban,form</field>
-        <!-- Only top-level folders -->
         <field name="domain">[('parent_id', '=', False)]</field>
     </record>
+
 </odoo>

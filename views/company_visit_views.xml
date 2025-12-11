@@ -1,183 +1,194 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- =========================================================
-         ACTION: action_company_visit_sign_requests
-         This window action opens the list of signature requests
-         linked to a specific company visit record.
-         - Used by the stat button in the visit form view.
-         - Filters sign requests by the active visit (active_id).
-         ========================================================= -->
     <record id="action_company_visit_sign_requests" model="ir.actions.act_window">
         <field name="name">Signature Requests</field>
         <field name="res_model">sign.request</field>
         <field name="view_mode">list,form</field>
-        <!-- Show only sign requests related to the current visit -->
         <field name="domain">[('company_visit_id', '=', active_id)]</field>
-        <!-- Automatically set default and search context for the active visit -->
         <field name="context">
             {'search_default_company_visit_id': active_id, 'default_company_visit_id': active_id}
         </field>
     </record>
 
-    <!-- =========================================================
-         FORM VIEW: company.visit.form
-         Main form for managing contracted company visits.
-         Includes workflow buttons, visit details, signatures,
-         engineer assignments, and a chatter for communication.
-         ========================================================= -->
+    <record id="action_company_visit_all" model="ir.actions.act_window">
+        <field name="name">All Visits</field>
+        <field name="res_model">company.visit</field>
+        <field name="view_mode">kanban,gantt,list,form,calendar,graph,pivot</field>
+    </record>
+
+    <record id="view_company_visit_kanban" model="ir.ui.view">
+        <field name="name">company.visit.kanban</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column" sample="1">
+                <field name="state"/>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="visit_date"/>
+                <field name="assign_engineer_id"/>
+                <field name="is_extra_visit"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click shadow-sm rounded mb-2 border-start border-4 #{record.state.raw_value == 'done' ? 'border-success' : (record.state.raw_value == 'cancelled' ? 'border-danger' : 'border-warning')}">
+                            <div class="oe_kanban_content p-2">
+                                <div class="o_kanban_record_top mb-2">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title fw-bold text-dark">
+                                            <field name="partner_id"/>
+                                        </strong>
+                                        <span class="text-muted d-block small">
+                                            <field name="name"/>
+                                        </span>
+                                    </div>
+                                    <div class="o_dropdown_kanban dropdown">
+                                        <t t-if="record.is_extra_visit.raw_value">
+                                            <span class="badge bg-info text-white rounded-pill">
+                                                <i class="fa fa-bolt"/>
+                                                Extra
+                                            </span>
+                                        </t>
+                                    </div>
+                                </div>
+                                <div class="o_kanban_record_body text-muted small mb-2">
+                                    <i class="fa fa-calendar me-1"/>
+                                    <field name="visit_date"/>
+                                </div>
+                                <div class="o_kanban_record_bottom d-flex justify-content-between align-items-center">
+                                    <div class="oe_kanban_bottom_left">
+                                        <field name="state" widget="label_selection"
+                                               options="{'classes': {'pending': 'warning', 'done': 'success', 'cancelled': 'danger'}}"/>
+                                    </div>
+                                    <div class="oe_kanban_bottom_right">
+                                        <field name="assign_engineer_id" widget="many2one_avatar_user"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_company_visit_gantt" model="ir.ui.view">
+        <field name="name">company.visit.gantt</field>
+        <field name="model">company.visit</field>
+        <field name="arch" type="xml">
+            <gantt date_start="visit_date"
+                   date_stop="visit_date"
+                   default_group_by="assign_engineer_id"
+                   default_scale="week"
+                   color="assign_engineer_id"
+                   string="Visit Schedule"
+                   decoration-info="state == 'pending'"
+                   decoration-success="state == 'done'"
+                   decoration-danger="state == 'cancelled'"
+                   thumbnails="{'assign_engineer_id': 'image_128'}">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="state"/>
+            </gantt>
+        </field>
+    </record>
+
     <record id="view_company_visit_form" model="ir.ui.view">
         <field name="name">company.visit.form</field>
         <field name="model">company.visit</field>
         <field name="arch" type="xml">
             <form string="Company Visit">
-
-                <!-- ========== HEADER SECTION ========== -->
                 <header>
-                    <!-- Send visit report for digital signature -->
-                    <button
-                            name="action_send_report_by_email"
-                            string="Send for Signature"
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'pending'"/>
-
-                    <!-- Mark the visit as completed -->
-                    <button
-                            name="action_mark_done"
-                            string="Mark as Done"
-                            type="object"
-                            class="btn-secondary"
-                            invisible="state != 'pending'"/>
-
-                    <!-- Cancel the visit (disabled if already cancelled) -->
-                    <button
-                            name="action_cancel"
-                            string="Cancel"
-                            type="object"
-                            invisible="state == 'cancelled'"/>
-
-                    <!-- Statusbar: shows visit progress (Pending → Done) -->
-                    <field
-                            name="state"
-                            widget="statusbar"
-                            statusbar_visible="pending,done"/>
+                    <button name="action_send_report_by_email" string="Send Report" type="object" class="btn-primary"
+                            icon="fa-paper-plane" invisible="state != 'pending'"/>
+                    <button name="action_mark_done" string="Mark as Done" type="object" class="btn-secondary"
+                            icon="fa-check" invisible="state != 'pending'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,done"/>
                 </header>
-
-                <!-- ========== MAIN BODY SECTION ========== -->
                 <sheet>
-
-                    <!-- Quick access stat button section -->
+                    <widget name="web_ribbon" title="Completed" bg_color="bg-success" invisible="state != 'done'"/>
+                    <widget name="web_ribbon" title="Cancelled" bg_color="bg-danger" invisible="state != 'cancelled'"/>
                     <div class="oe_button_box" name="button_box">
-                        <!-- Stat Button: View all related signature requests -->
-                        <button
-                                name="%(action_company_visit_sign_requests)d"
-                                type="action"
-                                class="oe_stat_button"
+                        <button name="%(action_company_visit_sign_requests)d" type="action" class="oe_stat_button"
                                 icon="fa-pencil-square-o">
-                            <field
-                                    name="sign_request_ids"
-                                    widget="statinfo"
-                                    string="Signature Requests"
-                                    help="Displays the number of digital signature requests linked to this visit."/>
+                            <field name="sign_request_ids" widget="statinfo" string="Signatures"/>
                         </button>
                     </div>
-
-                    <!-- Visit title -->
                     <div class="oe_title">
+                        <label for="name" class="oe_edit_only" string="Visit Reference"/>
                         <h1>
-                            <field name="name"/>
+                            <field name="name" placeholder="e.g. VST-2025-001"/>
                         </h1>
+                        <h3>
+                            <span class="text-muted">Client:</span>
+                            <field name="partner_id" widget="res_partner_many2one" context="{'show_address': 1}"
+                                   options='{"always_reload": True}'/>
+                        </h3>
                     </div>
-
-                    <!-- Visit core details (two-column layout) -->
                     <group>
-                        <group>
-                            <field name="contract_id"/>
-                            <field name="partner_id"/>
-                            <field name="visit_number"/>
-                            <field name="folder_id" readonly="1"/>
-                            <field name="partner_address"/>
-                        </group>
-                        <group>
+                        <group string="Schedule &amp; Contract">
                             <field name="visit_date"/>
-                            <field name="assign_engineer_id"/>
+                            <field name="contract_id"/>
+                            <field name="visit_number" string="Visit Sequence"/>
+                            <field name="folder_id" readonly="1" groups="base.group_no_one"/>
+                        </group>
+                        <group string="Assignment">
+                            <field name="assign_engineer_id" widget="many2one_avatar_user"/>
+                            <field name="partner_address" widget="char" class="text-break"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                     </group>
-
-                    <!-- Notebook tabs for detailed visit information -->
                     <notebook>
-                        <!-- Tab 1: Visit Details (Problem description, comments) -->
-                        <page string="Visit Details">
+                        <page string="Report Details" name="details" icon="fa-file-text-o">
                             <group>
-                                <field name="reason"/>
-                                <field name="description"/>
+                                <field name="reason" placeholder="Summary of the visit purpose..."/>
+                                <field name="description" placeholder="Detailed technical notes..." widget="text"
+                                       style="min-height: 100px;"/>
                             </group>
                         </page>
-
-                        <!-- Tab 2: Digital Signatures (Engineer & Client) -->
-                        <page string="Signatures">
-                            <group>
-                                <field name="engineer_signature" widget="signature"/>
-                                <field name="client_signature" widget="signature"/>
-                            </group>
+                        <page string="Signatures" name="signatures" icon="fa-pencil">
+                            <div class="row mt16">
+                                <div class="col-6">
+                                    <div class="text-center p-2"
+                                         style="border: 1px dashed #ccc; border-radius: 5px; background: #f9f9f9;">
+                                        <strong>Engineer Signature</strong>
+                                        <field name="engineer_signature" widget="signature" style="margin-top: 10px;"/>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-2"
+                                         style="border: 1px dashed #ccc; border-radius: 5px; background: #f9f9f9;">
+                                        <strong>Client Signature</strong>
+                                        <field name="client_signature" widget="signature" style="margin-top: 10px;"/>
+                                    </div>
+                                </div>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>
-
-                <!-- Enables chatter for communication and tracking -->
                 <chatter/>
             </form>
         </field>
     </record>
 
-    <!-- =========================================================
-         LIST VIEW: company.visit.list
-         Displays all visits in a tabular format with indicators
-         for extra visits, visit state, and assigned engineers.
-         ========================================================= -->
     <record id="view_company_visit_list" model="ir.ui.view">
         <field name="name">company.visit.list</field>
         <field name="model">company.visit</field>
         <field name="arch" type="xml">
             <list string="Company Visits" decoration-info="is_extra_visit==True">
-                <!-- Used internally to check if the visit is an extra one -->
                 <field name="is_extra_visit" invisible="1"/>
-
-                <!-- Inline icon button for extra visits -->
-                <button
-                        name="action_open_visit_form"
-                        type="object"
-                        icon="fa-plus-circle text-info"
-                        invisible="not is_extra_visit"
-                        class="oe_link_icon oe_read_only p-0"
-                        aria-label="Extra Visit"
-                        title="Extra Visit"/>
-
-                <!-- Core fields displayed in the list -->
+                <button name="action_open_visit_form" type="object" icon="fa-plus-circle text-info"
+                        invisible="not is_extra_visit" class="oe_link_icon oe_read_only p-0" title="Extra Visit"/>
                 <field name="name"/>
                 <field name="contract_id"/>
                 <field name="partner_id"/>
                 <field name="visit_date"/>
                 <field name="assign_engineer_id"/>
-
-                <!-- Colored badge for visit state -->
-                <field
-                        name="state"
-                        widget="badge"
-                        decoration-success="state == 'done'"
-                        decoration-info="state == 'pending'"
-                        decoration-danger="state == 'cancelled'"/>
+                <field name="state" widget="badge" decoration-success="state == 'done'"
+                       decoration-info="state == 'pending'" decoration-danger="state == 'cancelled'"/>
             </list>
         </field>
     </record>
-
-    <!-- =========================================================
-         CALENDAR VIEW: company.visit.calendar
-         Calendar visualization of visits, color-coded by company.
-         Helps track visit schedules and workload over time.
-         ========================================================= -->
     <record id="view_company_visit_calendar" model="ir.ui.view">
         <field name="name">company.visit.calendar</field>
         <field name="model">company.visit</field>
@@ -188,12 +199,6 @@
             </calendar>
         </field>
     </record>
-
-    <!-- =========================================================
-         GRAPH VIEW: company.visit.graph
-         Analytical view for visualizing visit statistics,
-         grouped by partner and state.
-         ========================================================= -->
     <record id="view_company_visit_graph" model="ir.ui.view">
         <field name="name">company.visit.graph</field>
         <field name="model">company.visit</field>
@@ -204,12 +209,6 @@
             </graph>
         </field>
     </record>
-
-    <!-- =========================================================
-         PIVOT VIEW: company.visit.pivot
-         Data pivot table for advanced reporting.
-         Displays visits per month and partner grouped by state.
-         ========================================================= -->
     <record id="view_company_visit_pivot" model="ir.ui.view">
         <field name="name">company.visit.pivot</field>
         <field name="model">company.visit</field>

@@ -15,7 +15,7 @@
     <record id="action_company_visit_all" model="ir.actions.act_window">
         <field name="name">All Visits</field>
         <field name="res_model">company.visit</field>
-        <field name="view_mode">list,form,calendar,graph,pivot</field>
+        <field name="view_mode">gantt,list,form,calendar,graph,pivot</field>
     </record>
 
     <record id="action_visit_folder" model="ir.actions.act_window">
@@ -25,46 +25,42 @@
         <field name="domain">[('is_company_folder', '=', True)]</field>
     </record>
 
-    <record id="action_signed_reports_folder" model="ir.actions.act_window">
-        <field name="name">Signed Reports</field>
-        <field name="res_model">visit.folder</field>
-        <field name="view_mode">kanban,form</field>
-        <field name="domain" eval="[('id', '=', ref('company_visit_tracker.folder_signed_reports'))]"/>
-        <field name="context" eval="{'default_parent_id': ref('company_visit_tracker.folder_signed_reports')}"/>
-    </record>
+    <menuitem
+            id="menu_visit_dashboard"
+            name="Dashboard"
+            parent="menu_visit_tracker_root"
+            action="action_visit_tracker_dashboard_js"
+            sequence="1"/>
 
     <menuitem
             id="menu_visit_contract"
             name="Contracts"
             parent="menu_visit_tracker_root"
             action="action_visit_contract"
-            sequence="1"/>
+            sequence="2"/>
+
 
     <menuitem
             id="menu_company_visit_all"
             name="All Visits"
             parent="menu_visit_tracker_root"
             action="action_company_visit_all"
-            sequence="2"/>
+            sequence="3"/>
+
 
     <menuitem
             id="menu_not_contracted_visit"
             name="Not Contracted Company"
             parent="menu_visit_tracker_root"
             action="action_not_contracted_visit"
-            sequence="3"/>
+            sequence="4"/>
+
 
     <menuitem
             id="menu_visit_folder"
             name="Document Folders"
             parent="menu_visit_tracker_root"
             action="action_visit_folder"
-            sequence="4"/>
-
-    <menuitem
-            id="menu_signed_reports_folder"
-            name="Signed Reports"
-            parent="menu_visit_tracker_root"
-            action="action_signed_reports_folder"
             sequence="5"/>
+
 </odoo>

@@ -1,125 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- =========================================================
-         FORM VIEW: visit.contract.form
-         This form view defines the user interface for managing
-         Visit Contract records. It includes buttons for workflow
-         actions (start, generate visits, add extra visits),
-         a statusbar for state tracking, and key contract details.
-         ========================================================= -->
     <record id="view_visit_contract_form" model="ir.ui.view">
         <field name="name">visit.contract.form</field>
         <field name="model">visit.contract</field>
         <field name="arch" type="xml">
-            <form string="Visit Contract">
-
-                <!-- ========== HEADER SECTION ========== -->
+            <form string="Service Contract">
                 <header>
-                    <!-- Button: Start the contract (only visible in Draft state) -->
-                    <button
-                            name="action_start_contract"
-                            string="Start Contract"
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'draft'"/>
-
-                    <!-- Button: Add extra visits (only visible while contract is In Progress) -->
-                    <button
-                            name="action_open_extra_visit_wizard"
-                            string="Add Extra Visits"
-                            type="object"
-                            class="btn-secondary"
-                            invisible="state != 'in_progress'"/>
-
-                    <!-- Button: Generate visits for the current month -->
-                    <button
-                            name="action_generate_current_month_visits"
-                            string="Generate Current Month's Visits"
-                            type="object"
-                            class="btn-secondary"
-                            invisible="state != 'in_progress'"/>
-
-                    <!-- Contract statusbar: Tracks the workflow states -->
-                    <field
-                            name="state"
-                            widget="statusbar"
-                            statusbar_visible="draft,in_progress,done"/>
+                    <button name="action_start_contract" string="Activate Contract" type="object" class="btn-primary"
+                            icon="fa-play" invisible="state != 'draft'"/>
+                    <button name="action_open_extra_visit_wizard" string="Add Extra Visit" type="object"
+                            class="btn-secondary" icon="fa-plus-circle" invisible="state != 'in_progress'"/>
+                    <button name="action_generate_current_month_visits" string="Generate Monthly Visits" type="object"
+                            class="btn-secondary" icon="fa-refresh" invisible="state != 'in_progress'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done"/>
                 </header>
-
-                <!-- ========== MAIN CONTENT AREA ========== -->
                 <sheet>
-
-                    <!-- Quick Access Buttons (Stat Info Box) -->
+                    <widget name="web_ribbon" title="Running" bg_color="bg-success" invisible="state != 'in_progress'"/>
+                    <widget name="web_ribbon" title="Completed" bg_color="bg-gray" invisible="state != 'done'"/>
                     <div class="oe_button_box" name="button_box">
-                        <!-- Stat Button: Open all generated visits for this contract -->
-                        <button
-                                name="action_open_visits"
-                                type="object"
-                                class="oe_stat_button"
-                                icon="fa-tasks">
-                            <field
-                                    name="visits_count"
-                                    widget="statinfo"
-                                    string="Generated Visits"/>
+                        <button name="action_open_visits" type="object" class="oe_stat_button"
+                                icon="fa-calendar-check-o">
+                            <field name="visits_count" widget="statinfo" string="Visits Generated"/>
                         </button>
                     </div>
-
-                    <!-- Title Field -->
                     <div class="oe_title">
+                        <label for="name" class="oe_edit_only" string="Contract Reference"/>
                         <h1>
-                            <field name="name"/>
+                            <field name="name" placeholder="e.g. AMC-2025-SOLMAX"/>
                         </h1>
+                        <h3>
+                            <span class="text-muted">Client:</span>
+                            <field name="partner_id" widget="res_partner_many2one" context="{'show_address': 1}"
+                                   options='{"always_reload": True}'/>
+                        </h3>
                     </div>
-
-                    <!-- ========== CONTRACT DETAILS ========== -->
                     <group>
-                        <!-- Left Column -->
-                        <group>
-                            <field name="partner_id"/>
-                            <field name="visits_per_month"/>
-                            <field name="total_contract_visits" readonly="1"/>
+                        <group string="Terms &amp; Duration">
+                            <field name="start_date" widget="daterange" options="{'related_end_date': 'end_date'}"/>
+                            <field name="end_date" widget="daterange" options="{'related_start_date': 'start_date'}"/>
+                            <label for="visits_per_month"/>
+                            <div class="o_row">
+                                <field name="visits_per_month" class="oe_inline"
+                                       style="font-weight: bold; font-size: 1.1em;"/>
+                                <span class="text-muted">visits per month</span>
+                            </div>
                         </group>
-
-                        <!-- Right Column -->
-                        <group>
-                            <field name="start_date"/>
-                            <field name="end_date"/>
+                        <group string="Management">
+                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="total_contract_visits" decoration-bf="1"/>
+                            <field name="folder_id" groups="base.group_no_one" readonly="1"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Schedule Preferences" name="schedule" icon="fa-calendar">
+                            <div class="alert alert-info mt-2" role="alert" invisible="not visits_per_month">
+                                <i class="fa fa-info-circle me-2"/>
+                                The system will automatically schedule
+                                <strong>
+                                    <field name="visits_per_month" readonly="1"/>
+                                </strong>
+                                visits per month on the days selected below.
+                            </div>
+                            <group string="Preferred Days of the Week">
+                                <div class="o_row d-flex justify-content-between" style="max-width: 800px;">
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_mon"/>
+                                        <div>Mon</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_tue"/>
+                                        <div>Tue</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_wed"/>
+                                        <div>Wed</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_thu"/>
+                                        <div>Thu</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_fri"/>
+                                        <div>Fri</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_sat"/>
+                                        <div>Sat</div>
+                                    </div>
+                                    <div class="text-center p-2 border rounded">
+                                        <field name="visit_on_sun"/>
+                                        <div>Sun</div>
+                                    </div>
+                                </div>
+                            </group>
+                        </page>
+                        <page string="Notes" name="notes" icon="fa-sticky-note-o">
+                            <field name="description" placeholder="Add any internal notes regarding this contract..."/>
+                        </page>
+                    </notebook>
                 </sheet>
-
-                <!-- Built-in chatter for tracking activities and messages -->
                 <chatter/>
             </form>
         </field>
     </record>
 
-    <!-- =========================================================
-         LIST VIEW: visit.contract.list
-         This tree/list view displays multiple Visit Contracts
-         in a concise format for easy browsing and management.
-         ========================================================= -->
     <record id="view_visit_contract_list" model="ir.ui.view">
         <field name="name">visit.contract.list</field>
         <field name="model">visit.contract</field>
         <field name="arch" type="xml">
-            <list string="Visit Contracts">
-                <field name="name"/>
+            <list string="Visit Contracts" decoration-info="state == 'draft'"
+                  decoration-success="state == 'in_progress'" decoration-muted="state == 'done'">
+                <field name="name" string="Reference"/>
                 <field name="partner_id"/>
+                <field name="user_id" widget="many2one_avatar_user" optional="show"/>
                 <field name="start_date"/>
                 <field name="end_date"/>
-                <field name="visits_per_month"/>
-                <field name="state"/>
+                <field name="visits_per_month" string="Freq/Month"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'"
+                       decoration-success="state == 'in_progress'"/>
             </list>
         </field>
     </record>
 
-    <!-- =========================================================
-         ACTION WINDOW: action_visit_contract
-         Defines the main action to open the Visit Contract menu.
-         This allows switching between List, Form, and Kanban views.
-         ========================================================= -->
     <record id="action_visit_contract" model="ir.actions.act_window">
         <field name="name">Contracts</field>
         <field name="res_model">visit.contract</field>
