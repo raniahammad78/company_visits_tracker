@@ -1,119 +1,129 @@
-
-Company Visit Tracker (Odoo Module)
-
+Company Visit Tracker Odoo Module
 Overview
 
-The Company Visit Tracker is a powerful Odoo module designed for service-based businesses that manage recurring client visits under contract. It automates the entire service lifecycle, from contract setup and scheduled visit generation to report documentation and client sign-off. This module introduces a novel, document-app-like folder structure for organizing all client reports, ensuring no visit detail is lost and making document retrieval instantaneous.
+The Company Visit Tracker is an Odoo 18 module designed to manage, automate, and track company service visits. It supports both contracted visits (based on agreements) and non-contracted ad-hoc visits, ensuring all customer interactions are recorded and properly documented.
 
+The module automates contract creation, folder structures, visit records, and professional reporting—while providing managers and engineers with clear views and status tracking.
+
+This is ideal for service-based businesses that need recurring contract visits and the ability to log extra or ad-hoc visits with ease.
 
 Key Features
+🔹 Core Functionality
 
-This module provides a seamless, automated workflow for managing contracted services.
+Automated Folder Structure
 
-1. Automated Contract Lifecycle
-   
-Contract Definition: Define service contracts specifying the client, duration (start/end dates), and the required Visits Per Month. The system automatically calculates the total expected visits for the contract duration.
+Creates a main folder per company contract.
 
-Scheduled Generation: A daily scheduled action (ir.cron) automatically runs to generate the required company.visit records for all active contracts for the current month.
+Generates monthly sub-folders for the contract’s duration.
 
-Extra Visits: A dedicated wizard allows users to manually add non-scheduled, Extra Visits for a specific month and contract, which are clearly flagged in the system.
+Stores visit reports inside the correct monthly folder.
 
-2. Document Management & Reporting
-   
-Automated Folder Structure: Upon activating a contract, the system automatically creates a main folder for the client and generates monthly sub-folders (e.g., "2025-03 (March)") spanning the contract duration.
+Automated Visit & Report Generation
 
-Report Archiving: For every visit created, a "Service Call" PDF report is automatically generated and saved as a visit.document record, instantly linked to the correct monthly folder.
+Creates visits per contract terms (e.g., 8 visits per month).
 
-Intuitive Navigation: Navigate through reports using a clean, two-level Kanban interface (visit.folder) to go from Company Folder to Monthly Sub-folders.
+Generates placeholder PDF reports for each visit.
 
-3. Digital Signatures & Workflow Automation
-   
-Odoo Sign Integration: Users can send the visit report directly to the client via email for a digital signature using the integrated Odoo Sign module.
+Auto-links visits to their monthly folder.
 
-Status Sync: Once the client completes the digital signing process, the related visit record is automatically updated to the 'Done' status.
+Professional PDF Reports
 
-Signed Document Storage: The final, signed PDF document is saved back into the correct monthly document folder.
+Standardized reports for each visit.
 
-Status Tracking: Visits are tracked with clear workflow states: Pending, Done (completed), and Cancelled.
+Includes engineer notes, reason, and digital signatures.
 
-4. Non-Contracted Visits
-   
-The module supports tracking visits for companies that do not have an active service contract via a separate model (not.contracted.visit).
+Intuitive Navigation (Kanban Folders)
 
-These one-off visits are organized under a distinct, shared root folder named "Not Contracted Visits," with monthly sub-folders also generated automatically.
+Two-level Kanban view: Contract folders → Monthly sub-folders.
 
-5. Analytics and Visualization
-   
-All visit data is accessible through advanced Odoo views, including Calendar, Graph, and Pivot tables for detailed analysis of workload, schedules, and completion rates.
+Quick access to all visit documents.
 
+Status Tracking
 
-Company Visit Tracker (Odoo Module)
-Overview
-The Company Visit Tracker is a powerful Odoo module designed for service-based businesses that manage recurring client visits under contract. It automates the entire service lifecycle, from contract setup and scheduled visit generation to report documentation and client sign-off. This module introduces a novel, document-app-like folder structure for organizing all client reports, ensuring no visit detail is lost and making document retrieval instantaneous.
+Visits marked as Pending, Done, or Cancelled.
 
-Module Metadata
-Field	Value	Source
-Odoo Version	18.0	
-Module Version	18.0.2.0.0	
-Author	RANIA HAMMAD	
-Category	Services/Project	
-License	LGPL-3	
+Status shown with color-coded badges.
 
-Export to Sheets
-Key Features
-This module provides a seamless, automated workflow for managing contracted services.
+Advanced Views
 
-1. Automated Contract Lifecycle
-Contract Definition: Define service contracts specifying the client, duration (start/end dates), and the required Visits Per Month. The system automatically calculates the total expected visits for the contract duration.
+Supports List, Calendar, Kanban, Pivot, and Graph views for easy planning and analysis.
 
-Scheduled Generation: A daily scheduled action (ir.cron) automatically runs to generate the required company.visit records for all active contracts for the current month.
+🔹 Extended Functionality
 
-Extra Visits: A dedicated wizard allows users to manually add non-scheduled, Extra Visits for a specific month and contract, which are clearly flagged in the system.
+Not Contracted Visits
 
-2. Document Management & Reporting
-Automated Folder Structure: Upon activating a contract, the system automatically creates a main folder for the client and generates monthly sub-folders (e.g., "2025-03 (March)") spanning the contract duration.
+Log ad-hoc visits outside a contract.
 
-Report Archiving: For every visit created, a "Service Call" PDF report is automatically generated and saved as a visit.document record, instantly linked to the correct monthly folder.
+Capture client, reason, visit date, engineer, and signatures.
 
-Intuitive Navigation: Navigate through reports using a clean, two-level Kanban interface (visit.folder) to go from Company Folder to Monthly Sub-folders.
+Store documents in dedicated non-contracted folders.
 
-3. Digital Signatures & Workflow Automation
-Odoo Sign Integration: Users can send the visit report directly to the client via email for a digital signature using the integrated Odoo Sign module.
+Extra Visit Wizard
 
-Status Sync: Once the client completes the digital signing process, the related visit record is automatically updated to the 'Done' status.
+Add extra visits in addition to contracted ones.
 
-Signed Document Storage: The final, signed PDF document is saved back into the correct monthly document folder.
+User-friendly wizard to select month folder, number of visits, and reason.
 
-Status Tracking: Visits are tracked with clear workflow states: Pending, Done (completed), and Cancelled.
+Reports automatically generated and stored correctly.
 
-4. Non-Contracted Visits
-The module supports tracking visits for companies that do not have an active service contract via a separate model (not.contracted.visit).
+Signature Support
 
-These one-off visits are organized under a distinct, shared root folder named "Not Contracted Visits," with monthly sub-folders also generated automatically.
+Both engineer and client can digitally sign visit reports.
 
-5. Analytics and Visualization
-All visit data is accessible through advanced Odoo views, including Calendar, Graph, and Pivot tables for detailed analysis of workload, schedules, and completion rates.
+Stored securely inside the visit report.
 
-Usage and Configuration
+Direct Emailing (planned)
 
-Create a Contract: Navigate to Visit Tracker > Contracts and create a new Visit Contract. Define the Company, Start Date, End Date, and Visits Per Month.
+Reports can be sent directly to the client by email.
 
-Start Contract: Click the Start Contract button to move the state from Draft to In Progress. This action automatically creates the root folder and all monthly sub-folders for the duration of the contract.
+Role-Based Security
 
-Visit Generation:
+Access rights defined for managing contracts, visits, and reports.
 
-Automatic: The system will automatically create the scheduled number of visits and their PDF reports daily.
+Installation
 
-Manual: You can manually generate the current month's visits at any time by clicking Generate Current Month's Visits on the contract form.
+Place the company_visit_tracker folder into your Odoo addons directory.
 
-Extra Visits: Use the Add Extra Visits button to launch a wizard for creating one-off visits for a specific month.
+Restart your Odoo server.
 
-Process a Visit:
+Navigate to Apps, click Update Apps List, and remove the Apps filter.
 
-Find the visit under Visit Tracker > Document Folders (Kanban view) or Visit Tracker > All Visits (List/Calendar view).
+Search for Company Visit Tracker and click Install.
 
-Fill in the Type of Problem and Engineer Comments.
+Configuration & Usage
 
-Click Request Signature to send the PDF report to the client's email for digital sign-off.
+Set Company Logo
 
-Once signed, the visit status will automatically change to Done.
+Navigate to: Settings > Companies > Your Company
+
+Upload logo for branded reports.
+
+Create a Contract
+
+Go to: Visit Tracker > Contracts.
+
+Add client, contract period, and visits per month.
+
+Start the Contract
+
+Click Start Contract → Auto-creates company folder + monthly sub-folders.
+
+Generate Visits
+
+Click Generate Current Month’s Visits → Creates visits and placeholder reports.
+
+Manage Visits
+
+Navigate to: Visit Tracker > Document Folders to browse reports.
+
+Or: Visit Tracker > All Visits to see them in the Calendar or List view.
+
+Add Extra Visits
+
+Use "Add Extra Visits" wizard to log additional visits beyond contract limits.
+
+Handle Not-Contracted Visits
+
+Go to Visit Tracker > Not Contracted Company
+
+Log details and generate standalone reports.
