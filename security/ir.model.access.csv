@@ -4,3 +4,4 @@ access_company_visit,company.visit.access,model_company_visit,base.group_user,1,
 access_visit_folder,visit.folder.access,model_visit_folder,base.group_user,1,1,1,1
 access_visit_document,visit.document.access,model_visit_document,base.group_user,1,1,1,1
 access_not_contracted_visit,not.contracted.visit.access,model_not_contracted_visit,base.group_user,1,1,1,1
+access_extra_visit_wizard,extra.visit.wizard.access,model_extra_visit_wizard,base.group_user,1,1,1,1
