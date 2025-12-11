@@ -2,6 +2,7 @@
 from odoo import models, fields, api, _ as _t
 import base64
 from odoo.exceptions import UserError
+from dateutil.relativedelta import relativedelta
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -9,12 +10,11 @@ _logger = logging.getLogger(__name__)
 
 # ========================================================================
 # MODEL: CompanyVisit
-# ... (rest of class comments) ...
 # ========================================================================
 
 class CompanyVisit(models.Model):
     _name = 'company.visit'
-    _inherit = ['mail.thread', 'mail.activity.mixin']  # Enables chatter & activities
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Company Visit Record'
 
     # ------------------------------
@@ -26,13 +26,13 @@ class CompanyVisit(models.Model):
         copy=False,
         readonly=True,
         default=lambda self: _t('New'),
-        help="Auto-generated reference for the visit (unique per company)."
+        help="Auto-generated reference: Company - Year/Month - Sequence"
     )
     visit_number = fields.Integer(
         string='Visit Number',
         readonly=True,
         copy=False,
-        help="Sequential number of the visit under the same contract."
+        help="Sequential number of the visit for the specific month."
     )
     is_extra_visit = fields.Boolean(
         string="Extra Visit",
@@ -118,43 +118,71 @@ class CompanyVisit(models.Model):
             self.partner_address = self.contract_id.partner_id.contact_address_complete
 
     # --------------------------------------------------------------------
-    # OVERRIDE: CREATE
+    # OVERRIDE: CREATE (Robust Monthly Sequence)
     # --------------------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
         """
         Custom create method:
-         - Assigns a sequence number (per partner/company)
-         - Increments visit count within contract
-         - Automatically generates a visit report PDF
+         - Generates a reference name that RESETS every month (Partner - YYYY/MM - 1).
+         - Uses the HIGHEST existing number + 1 to prevent duplicates if records are deleted.
+         - Automatically generates a visit report PDF.
         """
+        # Cache to correctly handle batch creation (e.g., creating 8 visits at once)
+        # Key: (partner_id, year, month) -> current_max_sequence
+        sequence_cache = {}
+
         for vals in vals_list:
+            # 1. Determine Partner
+            contract = False
+            partner = False
+
             if vals.get('contract_id'):
                 contract = self.env['visit.contract'].browse(vals.get('contract_id'))
+                partner = contract.partner_id
+            elif vals.get('partner_id'):
+                partner = self.env['res.partner'].browse(vals.get('partner_id'))
 
-                # ------------------------------
-                # Sequence Generation per Partner
-                # ------------------------------
-                if contract.partner_id:
-                    sequence_code = f'company.visit.{contract.partner_id.id}'
-                    sequence = self.env['ir.sequence'].search([('code', '=', sequence_code)], limit=1)
+            # 2. Determine Visit Date
+            visit_date_val = vals.get('visit_date') or fields.Date.today()
+            if isinstance(visit_date_val, str):
+                visit_date = fields.Date.from_string(visit_date_val)
+            else:
+                visit_date = visit_date_val
 
-                    # Create partner-specific sequence if it doesn't exist
-                    if not sequence:
-                        sequence = self.env['ir.sequence'].create({
-                            'name': f'{contract.partner_id.name} Visit Sequence',
-                            'code': sequence_code,
-                            'prefix': f'{contract.partner_id.name}-VST-',
-                            'padding': 3,
-                            'company_id': False,
-                        })
-                    vals['name'] = sequence.next_by_id()
+            # If we have a partner, we can generate the custom sequence
+            if partner:
+                # 3. Determine the count for this specific Month & Partner
+                key = (partner.id, visit_date.year, visit_date.month)
 
-                # ------------------------------
-                # Increment Visit Counter
-                # ------------------------------
-                count = self.search_count([('contract_id', '=', contract.id)])
-                vals['visit_number'] = count + 1
+                if key not in sequence_cache:
+                    # Fetch existing HIGHEST number from DB for this month
+                    start_of_month = visit_date.replace(day=1)
+                    end_of_month = (start_of_month + relativedelta(months=1)) - relativedelta(days=1)
+
+                    domain = [
+                        ('partner_id', '=', partner.id),
+                        ('visit_date', '>=', start_of_month),
+                        ('visit_date', '<=', end_of_month)
+                    ]
+
+                    # Search for the record with the highest visit_number
+                    last_visit = self.search(domain, order='visit_number desc', limit=1)
+                    current_max = last_visit.visit_number if last_visit else 0
+
+                    # Store current max in cache
+                    sequence_cache[key] = current_max
+
+                # 4. Increment count for the new record
+                sequence_cache[key] += 1
+                new_seq = sequence_cache[key]
+
+                # 5. Assign Values
+                vals['visit_number'] = new_seq
+
+                # Format: "Solmax - 2025/12 - 1"
+                date_label = visit_date.strftime('%Y/%m')
+                vals['name'] = f"{partner.name} - {date_label} - {new_seq}"
 
         # Call super to actually create the records
         visits = super().create(vals_list)
@@ -198,6 +226,8 @@ class CompanyVisit(models.Model):
         try:
             # Render the report as PDF
             pdf_content, _ = report._render_qweb_pdf(report_ref=report.report_name, res_ids=self.ids)
+
+            # Use the new monthly name format for the PDF filename too
             report_name = f'Visit Report - {self.name}.pdf'
 
             # Create a new visit.document record (stores the PDF)
@@ -218,11 +248,7 @@ class CompanyVisit(models.Model):
     # --------------------------------------------------------------------
     def _save_signed_report_to_folder(self, signed_pdf_data):
         """
-        MODIFIED: Once a sign request is completed, this method saves the
-        signed PDF into a new company-specific folder under 'Signed Reports'.
-
-        This method now accepts the PDF data directly from the 'write'
-        trigger to avoid a database transaction timing issue.
+        Saves the signed PDF into a new company-specific folder under 'Signed Reports'.
         """
         self.ensure_one()
 
@@ -250,15 +276,13 @@ class CompanyVisit(models.Model):
                     'parent_id': main_signed_folder.id,
                 })
 
-            # 3. REMOVED: Search for sign.request (we now pass the data in)
-
-            # 4. Create the new visit.document record
+            # 3. Create the new visit.document record
             report_name = f'Signed Visit Report - {self.name}.pdf'
 
             self.env['visit.document'].create({
                 'name': report_name,
                 'folder_id': partner_folder.id,
-                'datas': signed_pdf_data,  # Use the passed-in data
+                'datas': signed_pdf_data,
                 'visit_id': self.id,
             })
             _logger.info(f"Successfully saved signed report for visit {self.name} to folder {partner_folder.name}.")
@@ -283,11 +307,9 @@ class CompanyVisit(models.Model):
         """
         self.ensure_one()
 
-        # Ensure the client has an email
         if not self.partner_id.email:
             raise UserError(_t("The client company does not have an email address set."))
 
-        # Re-render the report with current data
         report = self.env.ref('company_visit_tracker.action_report_company_visit', raise_if_not_found=False)
         if not report:
             raise UserError(_t("The visit report definition could not be found. Please contact your administrator."))
@@ -298,7 +320,6 @@ class CompanyVisit(models.Model):
         if not pdf_report:
             raise UserError(_t("Failed to generate the visit report PDF."))
 
-        # Step 1: Create attachment from report
         attachment = self.env['ir.attachment'].create({
             'name': report_name + '.pdf',
             'type': 'binary',
@@ -308,35 +329,29 @@ class CompanyVisit(models.Model):
             'mimetype': 'application/pdf',
         })
 
-        # Step 2: Retrieve or fallback to Customer Role
         ClientRole = self.env.ref('sign.sign_item_role_customer', raise_if_not_found=False) or \
                      self.env['sign.item.role'].search([('name', '=', 'Customer')], limit=1)
         if not ClientRole:
             raise UserError(_t("Customer role not found. Please ensure the Sign module is fully set up."))
 
-        # Step 3: Create sign template from attachment
         template = self.env['sign.template'].create({
             'name': report_name,
             'attachment_id': attachment.id,
         })
         attachment.write({'res_model': 'sign.template', 'res_id': template.id})
 
-        # Step 4: Add client signature field
         self.env['sign.item'].create({
             'template_id': template.id,
             'type_id': self.env.ref('sign.sign_item_type_signature').id,
             'required': True,
             'responsible_id': ClientRole.id,
             'page': 1,
-            # Adjust X and Y positions to move it inside the frame
             'posX': 0.62,
             'posY': 0.58,
-            # Adjust width/height to fit inside frame
             'width': 0.24,
             'height': 0.06,
         })
 
-        # Step 5: Create and send the sign request
         sign_request = self.env['sign.request'].create({
             'template_id': template.id,
             'reference': report_name,
@@ -348,7 +363,6 @@ class CompanyVisit(models.Model):
             })],
         })
 
-        # Step 6: Send the sign request using available methods
         try:
             if hasattr(sign_request, 'action_send'):
                 sign_request.action_send()
@@ -364,7 +378,6 @@ class CompanyVisit(models.Model):
         except Exception as e:
             raise UserError(_t("Failed to send signature request: %s") % str(e))
 
-        # Step 7: Notify user of success
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -389,10 +402,7 @@ class CompanyVisit(models.Model):
 
 
 # ========================================================================
-# MODEL EXTENSION: SignRequest (CONSOLIDATED)
-# ------------------------------------------------------------------------
-# Extends Odoo's sign.request model to link sign requests to BOTH
-# visit types. Automatically syncs status and triggers report saving.
+# MODEL EXTENSION: SignRequest
 # ========================================================================
 
 class SignRequest(models.Model):
@@ -405,7 +415,6 @@ class SignRequest(models.Model):
         help="The visit record linked to this signature request."
     )
 
-    # ADDED: Link to non-contracted visits
     not_contracted_visit_id = fields.Many2one(
         'not.contracted.visit',
         string='Related Non-Contracted Visit',
@@ -414,48 +423,24 @@ class SignRequest(models.Model):
     )
 
     def write(self, vals):
-        """
-        *** THIS IS THE FINAL, CORRECTED METHOD ***
-
-        This method is triggered when any field on the sign.request
-        is changed.
-
-        The NEW TRIGGER is: 'completed_document'.
-        This is the only reliable way to know the document is
-        ready. The 'state' field can be unreliable.
-        """
-        # Call the parent method first
         result = super(SignRequest, self).write(vals)
 
-        # Check if the 'completed_document' was just added to the record
         if vals.get('completed_document'):
             _logger.info(f"SignRequest write trigger: 'completed_document' was added for records {self.ids}")
             for record in self:
-                # We know the document data is in 'vals', but let's
-                # use the record's field for simplicity.
                 signed_document = record.completed_document
 
-                # Double-check: if the state isn't signed, Odoo might
-                # be in a weird state, but we'll trust the document.
-                if record.state != 'signed':
-                    _logger.warning(
-                        f"SignRequest {record.id} has a completed document but state is '{record.state}'. Proceeding to save anyway.")
-
-                # Handle Contracted Visits
                 if record.company_visit_id:
                     _logger.info(f"Processing signed report for Contracted Visit: {record.company_visit_id.name}...")
                     record.company_visit_id._save_signed_report_to_folder(signed_document)
                     if record.company_visit_id.state == 'pending':
                         record.company_visit_id.action_mark_done()
-                        _logger.info(f"Marked visit {record.company_visit_id.name} as Done.")
 
-                # Handle Non-Contracted Visits
                 if record.not_contracted_visit_id:
                     _logger.info(
                         f"Processing signed report for Non-Contracted Visit: {record.not_contracted_visit_id.name}...")
                     record.not_contracted_visit_id._save_signed_report_to_folder(signed_document)
                     if record.not_contracted_visit_id.state == 'pending':
                         record.not_contracted_visit_id.action_mark_done()
-                        _logger.info(f"Marked visit {record.not_contracted_visit_id.name} as Done.")
 
         return result

@@ -100,7 +100,8 @@ class NotContractedVisit(models.Model):
     def _onchange_partner_id(self):
         """Automatically fills the client address when a partner is selected."""
         if self.partner_id:
-            self.partner_address = self.partner_id.contact_address_complete
+            # Corrected field name from 'contact_address_complete'
+            self.partner_address = self.partner_id.contact_address
 
     # === RECORD CREATION ===
     @api.model_create_multi
@@ -186,57 +187,10 @@ class NotContractedVisit(models.Model):
         self.write({'report_document_id': doc.id})
 
     # === NEW METHOD: Save Signed Report ===
-    def _save_signed_report_to_folder(self, signed_pdf_data):
-        """
-        *** MODIFIED ***
-        Once a sign request is completed, this method saves the signed PDF
-        into a new company-specific folder under 'Signed Reports'.
 
-        This method now accepts the PDF data directly from the 'write'
-        trigger to avoid a database transaction timing issue.
-        """
-        self.ensure_one()
-
-        if not signed_pdf_data:
-            _logger.warning(f"Save report called for non-contracted visit {self.name} but no PDF data was provided.")
-            return
-
-        if not self.partner_id:
-            _logger.warning(f"Cannot save signed report for non-contracted visit {self.name}: No partner assigned")
-            return
-
-        try:
-            # 1. Find the main "Signed Reports" folder
-            main_signed_folder = self.env.ref('company_visit_tracker.folder_signed_reports', raise_if_not_found=True)
-
-            # 2. Find or create the company-specific sub-folder (e.g., "Signed Reports / Client A")
-            partner_folder = self.env['visit.folder'].search([
-                ('name', '=', self.partner_id.name),
-                ('parent_id', '=', main_signed_folder.id)
-            ], limit=1)
-
-            if not partner_folder:
-                partner_folder = self.env['visit.folder'].create({
-                    'name': self.partner_id.name,
-                    'parent_id': main_signed_folder.id,
-                })
-
-            # 3. REMOVED: Search for sign.request (we now pass the data in)
-
-            # 4. Create the new visit.document record
-            report_name = f'Signed Visit Report - {self.name}.pdf'
-
-            self.env['visit.document'].create({
-                'name': report_name,
-                'folder_id': partner_folder.id,
-                'datas': signed_pdf_data,  # Use the passed-in data
-                'not_contracted_visit_id': self.id,
-            })
-            _logger.info(
-                f"Successfully saved signed report for non-contracted visit {self.name} to folder {partner_folder.name}.")
-
-        except Exception as e:
-            _logger.warning(f"Failed to save signed report for non-contracted visit {self.name}: {str(e)}")
+    # *** THIS FUNCTION IS NO LONGER NEEDED ***
+    # def _save_signed_report_to_folder(self, signed_pdf_data):
+    #     ... (function removed) ...
 
     # === ACTIONS ===
     def action_print_report(self):
@@ -317,7 +271,8 @@ class NotContractedVisit(models.Model):
         })
 
         # === STEP 5: Create the Sign Request ===
-        sign_request = self.env['sign.request'].create({
+        # The .create() method will automatically trigger the send.
+        self.env['sign.request'].create({
             'template_id': template.id,
             'reference': report_name,
             'subject': _t("Signature Request for Visit Report: %s") % self.name,
@@ -328,26 +283,7 @@ class NotContractedVisit(models.Model):
             })],
         })
 
-        # === STEP 6: Send signature request via email ===
-        try:
-            # Initialize request (for newer Odoo Sign versions)
-            if hasattr(sign_request, 'initialize_new'):
-                sign_request.initialize_new()
-
-            # Send email to client
-            if hasattr(sign_request, 'action_send'):
-                sign_request.action_send()
-            elif hasattr(sign_request, 'send_signature_accesses'):
-                sign_request.send_signature_accesses()
-            else:
-                # Fallback for older Odoo Sign versions
-                sign_request.write({'state': 'sent'})
-                for item in sign_request.request_item_ids:
-                    if item.partner_id and item.partner_id.email:
-                        if hasattr(item, 'send_signature_accesses'):
-                            item.send_signature_accesses()
-        except Exception as e:
-            raise UserError(_t("Failed to send signature request: %s") % str(e))
+        # Step 6: Removed the manual send block to prevent double emails.
 
         # === STEP 7: Return confirmation popup ===
         return {

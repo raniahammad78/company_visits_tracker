@@ -3,6 +3,7 @@ import logging
 from odoo import models, fields, api, _ as _t
 from odoo.exceptions import UserError
 from dateutil.relativedelta import relativedelta
+import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -10,14 +11,6 @@ _logger = logging.getLogger(__name__)
 class VisitContract(models.Model):
     """
     The VisitContract model represents a service agreement between a company and a client.
-    Each contract defines:
-        - A client (partner)
-        - A date range (start to end)
-        - A specific number of scheduled visits per month
-
-    When a contract is activated, a folder structure is automatically created under `visit.folder`,
-    containing one subfolder per month for organizing visit reports and documents.
-    The system can then generate visits automatically every month or manually on demand.
     """
     _name = 'visit.contract'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -37,6 +30,16 @@ class VisitContract(models.Model):
         required=True,
         help="The client company this contract belongs to."
     )
+
+    # Responsible Person (Receives reminders)
+    user_id = fields.Many2one(
+        'res.users',
+        string='Responsible',
+        default=lambda self: self.env.user,
+        required=True,
+        help="The user responsible for this contract. They will receive expiry reminders."
+    )
+
     start_date = fields.Date(
         string='Start Date',
         required=True,
@@ -53,6 +56,22 @@ class VisitContract(models.Model):
         required=True,
         help="Defines how many visits should be generated automatically per month."
     )
+
+    # Note / Description Field (Fixes the XML error)
+    description = fields.Html(
+        string='Terms and Notes',
+        help="Internal notes or terms regarding this contract."
+    )
+
+    # Preferred Visit Days
+    visit_on_mon = fields.Boolean(string='Mon', default=False)
+    visit_on_tue = fields.Boolean(string='Tue', default=False)
+    visit_on_wed = fields.Boolean(string='Wed', default=False)
+    visit_on_thu = fields.Boolean(string='Thu', default=False)
+    visit_on_fri = fields.Boolean(string='Fri', default=False)
+    visit_on_sat = fields.Boolean(string='Sat', default=False)
+    visit_on_sun = fields.Boolean(string='Sun', default=False)
+
     state = fields.Selection([
         ('draft', 'Draft'),
         ('in_progress', 'In Progress'),
@@ -92,19 +111,11 @@ class VisitContract(models.Model):
     # ---------------------------------------------------------
 
     def _compute_visits_count(self):
-        """
-        Counts how many company visits are linked to this contract.
-        """
         for contract in self:
             contract.visits_count = self.env['company.visit'].search_count([('contract_id', '=', contract.id)])
 
     @api.depends('start_date', 'end_date', 'visits_per_month')
     def _compute_total_contract_visits(self):
-        """
-        Calculates the total expected number of visits during the contract period.
-        Formula:
-            number of months * visits per month
-        """
         for contract in self:
             if contract.start_date and contract.end_date:
                 delta = relativedelta(contract.end_date, contract.start_date)
@@ -113,30 +124,57 @@ class VisitContract(models.Model):
             else:
                 contract.total_contract_visits = 0
 
+    def _get_visit_dates_for_month(self, target_date, required_visits):
+        """Calculates specific dates for visits based on preferred weekdays."""
+        self.ensure_one()
+        preferred_weekdays = []
+        if self.visit_on_mon: preferred_weekdays.append(0)
+        if self.visit_on_tue: preferred_weekdays.append(1)
+        if self.visit_on_wed: preferred_weekdays.append(2)
+        if self.visit_on_thu: preferred_weekdays.append(3)
+        if self.visit_on_fri: preferred_weekdays.append(4)
+        if self.visit_on_sat: preferred_weekdays.append(5)
+        if self.visit_on_sun: preferred_weekdays.append(6)
+
+        if not preferred_weekdays or required_visits <= 0:
+            return [target_date] * required_visits
+
+        potential_dates = []
+        current_iter_date = target_date.replace(day=1)
+        next_month = current_iter_date + relativedelta(months=1)
+        last_day_of_month = next_month - relativedelta(days=1)
+
+        while current_iter_date <= last_day_of_month:
+            if current_iter_date.weekday() in preferred_weekdays:
+                potential_dates.append(current_iter_date)
+            current_iter_date += relativedelta(days=1)
+
+        if not potential_dates:
+            return [target_date] * required_visits
+
+        final_dates = []
+        potential_count = len(potential_dates)
+        for i in range(required_visits):
+            date_index = i % potential_count
+            final_dates.append(potential_dates[date_index])
+
+        final_dates.sort()
+        return final_dates
+
     # ---------------------------------------------------------
     # Contract Workflow Actions
     # ---------------------------------------------------------
 
     def action_start_contract(self):
-        """
-        Starts the contract:
-            - Only allowed from 'draft' state.
-            - Automatically creates a folder structure for each month
-              between start_date and end_date under 'visit.folder'.
-            - Sets the state to 'in_progress'.
-        """
         self.ensure_one()
-
         if self.state != 'draft':
             raise UserError(_t("The contract must be in a draft state to start it."))
 
-        # Create the main folder with subfolders for each contract month
         if not self.folder_id:
             child_folders_vals = []
             delta = relativedelta(self.end_date, self.start_date)
             total_months = delta.years * 12 + delta.months
 
-            # Generate monthly folder names (e.g., "2025-03 (March)")
             for i in range(total_months + 1):
                 current_date = self.start_date + relativedelta(months=i)
                 if current_date > self.end_date:
@@ -144,7 +182,6 @@ class VisitContract(models.Model):
                 folder_name = current_date.strftime('%Y-%m (%B)')
                 child_folders_vals.append((0, 0, {'name': folder_name}))
 
-            # Create main folder with child folders
             main_folder = self.env['visit.folder'].create({
                 'name': self.partner_id.name,
                 'child_folder_ids': child_folders_vals,
@@ -158,51 +195,24 @@ class VisitContract(models.Model):
     # ---------------------------------------------------------
 
     def action_generate_current_month_visits(self):
-        """
-        Manually triggers visit generation for the current month only.
-        Uses the same logic as the scheduled cron method.
-        Returns a visual notification indicating whether visits were created or not.
-        """
         visits_created_count = self._cron_generate_monthly_visits(specific_contracts=self)
-
         if visits_created_count > 0:
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {
-                    'title': _t('Success'),
-                    'message': _t(f'{visits_created_count} visits have been generated for the current month.'),
-                    'type': 'success',
-                    'sticky': False,
-                }
+                'params': {'title': _t('Success'), 'message': _t(f'{visits_created_count} visits generated.'),
+                           'type': 'success', 'sticky': False}
             }
         else:
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {
-                    'title': _t('Info'),
-                    'message': _t('Visits for the current month have already been generated.'),
-                    'type': 'info',
-                    'sticky': False,
-                }
+                'params': {'title': _t('Info'), 'message': _t('Visits already generated.'), 'type': 'info',
+                           'sticky': False}
             }
 
     @api.model
     def _cron_generate_monthly_visits(self, specific_contracts=None):
-        """
-        Scheduled task (cron) or manual call to generate visits automatically each month.
-
-        Logic:
-            - Finds all 'in_progress' contracts (or the given ones if specified)
-            - Finds the current month's folder under each contract's main folder
-            - If no visits exist for this month, creates the number of visits defined
-              in 'visits_per_month'
-            - Generates a visit report document for each created visit
-
-        Returns:
-            int: The total number of visits created
-        """
         if specific_contracts:
             contracts = specific_contracts
         else:
@@ -213,53 +223,65 @@ class VisitContract(models.Model):
         visits_created_total = 0
 
         for contract in contracts:
-            # Skip if no folder was created for this contract
-            if not contract.folder_id:
-                continue
+            if not contract.folder_id: continue
 
-            # Find the folder for the current month
             month_folder = self.env['visit.folder'].search([
                 ('parent_id', '=', contract.folder_id.id),
                 ('name', 'like', f'{current_month_str}%')
             ], limit=1)
 
-            if not month_folder:
-                continue
+            if not month_folder: continue
 
-            # Check if visits for this month already exist
             existing_visits = self.env['company.visit'].search_count([
                 ('contract_id', '=', contract.id),
                 ('folder_id', '=', month_folder.id)
             ])
 
-            # If no visits exist, generate new ones
             if existing_visits == 0:
-                for i in range(contract.visits_per_month):
+                calculated_dates = contract._get_visit_dates_for_month(today, contract.visits_per_month)
+                for visit_date in calculated_dates:
                     visit = self.env['company.visit'].create({
                         'contract_id': contract.id,
-                        'visit_date': today,
+                        'visit_date': visit_date,
                         'folder_id': month_folder.id,
                     })
-
-                    # Generate the report document for the new visit
                     if visit and visit.folder_id:
                         visit._action_generate_report_document()
-                    else:
-                        _logger.warning(f"Failed to create visit with folder link for contract {contract.name}")
-
-                visits_created_total += contract.visits_per_month
+                visits_created_total += len(calculated_dates)
 
         return visits_created_total
 
     # ---------------------------------------------------------
-    # Navigation & UI Actions
+    # Cron: Contract Expiry Reminder (Daily Check)
+    # ---------------------------------------------------------
+    @api.model
+    def _cron_contract_expiry_reminder(self):
+        """
+        Runs daily. Checks for contracts expiring in exactly 1 MONTH.
+        Creates a 'To Do' activity for the responsible user.
+        """
+        today = fields.Date.today()
+        target_expiry_date = today + relativedelta(months=1)
+
+        expiring_contracts = self.search([
+            ('state', '=', 'in_progress'),
+            ('end_date', '=', target_expiry_date)
+        ])
+
+        for contract in expiring_contracts:
+            contract.activity_schedule(
+                'mail.mail_activity_data_todo',
+                user_id=contract.user_id.id,
+                note=f"This contract expires on {contract.end_date}. Please contact the client for renewal.",
+                summary="Contract Expiring in 1 Month"
+            )
+            _logger.info(f"Created expiry reminder for contract {contract.name}")
+
+    # ---------------------------------------------------------
+    # Navigation Actions
     # ---------------------------------------------------------
 
     def action_open_visits(self):
-        """
-        Opens a window showing all visits related to this contract.
-        Includes multiple view modes (list, form, calendar, graph, pivot).
-        """
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -271,9 +293,6 @@ class VisitContract(models.Model):
         }
 
     def action_open_extra_visit_wizard(self):
-        """
-        Opens a pop-up (wizard) to manually add extra visits to the contract.
-        """
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
