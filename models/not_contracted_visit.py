@@ -10,7 +10,8 @@ _logger = logging.getLogger(__name__)
 class NotContractedVisit(models.Model):
     """
     Model: not.contracted.visit
-    ... (rest of comments) ...
+    ----------------------------------
+    Tracks service visits for non-contracted companies.
     """
     _name = 'not.contracted.visit'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -23,96 +24,43 @@ class NotContractedVisit(models.Model):
         copy=False,
         readonly=True,
         default=lambda self: _t('New'),
-        help="Unique reference for each visit (auto-generated)."
     )
 
-    partner_id = fields.Many2one(
-        'res.partner',
-        string='Company',
-        required=True,
-        help="Select the client company for which the visit is made."
-    )
+    partner_id = fields.Many2one('res.partner', string='Company', required=True)
+    state = fields.Selection([
+        ('pending', 'Pending'),
+        ('done', 'Done'),
+        ('cancelled', 'Cancelled')
+    ], string='Status', default='pending', tracking=True)
 
-    state = fields.Selection(
-        [
-            ('pending', 'Pending'),
-            ('done', 'Done'),
-            ('cancelled', 'Cancelled')
-        ],
-        string='Status',
-        default='pending',
-        tracking=True,
-        help="Tracks the current visit status. Used for workflow transitions."
-    )
+    visit_date = fields.Date(string='Visit Date', default=fields.Date.context_today)
+    company_id = fields.Many2one('res.company', string='Company', required=True, default=lambda self: self.env.company)
+    assign_engineer_id = fields.Many2one('res.users', string='Assigned Engineer', default=lambda self: self.env.user)
 
-    visit_date = fields.Date(
-        string='Visit Date',
-        default=fields.Date.context_today,
-        help="Date when the visit took place or is scheduled."
-    )
+    # Details
+    reason = fields.Char(string="Type of Problem")
+    description = fields.Text(string="Engineer Comments")
+    partner_address = fields.Char(string="Visit Address")
 
-    # Company info for multi-company environment support
-    company_id = fields.Many2one(
-        'res.company',
-        string='Company',
-        required=True,
-        default=lambda self: self.env.company,
-        help="Indicates the company responsible for the visit (for multi-company setups)."
-    )
-
-    # Engineer assigned to handle the visit
-    assign_engineer_id = fields.Many2one(
-        'res.users',
-        string='Assigned Engineer',
-        default=lambda self: self.env.user,
-        help="Engineer or technician responsible for performing this visit."
-    )
-
-    # Additional details about the visit
-    reason = fields.Char(string="Type of Problem", help="Short description of the issue or request.")
-    description = fields.Text(string="Engineer Comments", help="Detailed comments added by the engineer.")
-    partner_address = fields.Char(string="Visit Address", help="Client's address for the visit location.")
-
-    # Signatures captured during or after the visit
+    # Signatures
     engineer_signature = fields.Binary(string="Engineer Signature")
     client_signature = fields.Binary(string="Client Signature")
 
-    # Link to the generated PDF report
-    report_document_id = fields.Many2one(
-        'visit.document',
-        string="Generated Report",
-        readonly=True,
-        copy=False,
-        help="Automatically generated visit report stored as a document record."
-    )
-
-    # Relation to electronic signature requests (Odoo Sign)
-    sign_request_ids = fields.One2many(
-        'sign.request',
-        'not_contracted_visit_id',
-        string='Signature Requests',
-        readonly=True,
-        help="Tracks all signature requests associated with this visit."
-    )
+    # Documents
+    report_document_id = fields.Many2one('visit.document', string="Generated Report", readonly=True, copy=False)
+    sign_request_ids = fields.One2many('sign.request', 'not_contracted_visit_id', string='Signature Requests',
+                                       readonly=True)
 
     # === FIELD ONCHANGE METHODS ===
     @api.onchange('partner_id')
     def _onchange_partner_id(self):
-        """Automatically fills the client address when a partner is selected."""
         if self.partner_id:
-            # Corrected field name from 'contact_address_complete'
-            self.partner_address = self.partner_id.contact_address
+            self.partner_address = self.partner_id.contact_address or ''
 
     # === RECORD CREATION ===
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Overrides create() to:
-        - Auto-generate visit reference name using partner name and sequence.
-        - Automatically generate the visit report document after creation.
-        """
         for vals in vals_list:
-            # Generate unique reference number if not provided
             if vals.get('name', _t('New')) == _t('New'):
                 sequence = self.env['ir.sequence'].next_by_code('not.contracted.visit') or ''
                 partner_name = ''
@@ -120,38 +68,23 @@ class NotContractedVisit(models.Model):
                     partner = self.env['res.partner'].browse(vals.get('partner_id'))
                     if partner:
                         partner_name = partner.name
-
-                # Combine partner name and sequence for clearer tracking
                 vals['name'] = f"{partner_name} - {sequence}" if partner_name else sequence
 
-        # Create the record(s)
         visits = super().create(vals_list)
-
-        # Automatically generate a PDF report for each created visit
         for visit in visits:
             visit._action_generate_report_document()
         return visits
 
     # === REPORT GENERATION ===
     def _action_generate_report_document(self):
-        """
-        Generates a PDF report for the visit and saves it in the
-        corresponding 'Not Contracted Visits' folder (grouped by month).
-
-        This method is called automatically after creation.
-        """
         self.ensure_one()
-
-        # Skip if report already exists
         if self.report_document_id:
             return
 
-        # Main root folder reference (must exist in XML data)
         main_folder = self.env.ref('company_visit_tracker.folder_not_contracted_visits', raise_if_not_found=False)
         if not main_folder:
-            return  # Avoid crash if folder not configured
+            return
 
-        # Create or locate month subfolder (e.g., "2025-10 (October)")
         visit_date = self.visit_date or fields.Date.today()
         folder_name = visit_date.strftime('%Y-%m (%B)')
 
@@ -166,98 +99,131 @@ class NotContractedVisit(models.Model):
                 'parent_id': main_folder.id,
             })
 
-        # Load report definition
         report = self.env.ref('company_visit_tracker.action_report_not_contracted_visit', raise_if_not_found=False)
         if not report:
             return
 
-        # Render QWeb report into PDF
         pdf_content, _ = report._render_qweb_pdf(report_ref=report.report_name, res_ids=self.ids)
         report_name = f'Visit Report - {self.partner_id.name} - {self.visit_date}.pdf'
 
-        # Create new visit.document record to store the generated PDF
         doc = self.env['visit.document'].create({
             'name': report_name,
             'folder_id': month_folder.id,
             'datas': base64.b64encode(pdf_content),
             'not_contracted_visit_id': self.id,
         })
-
-        # Link generated document back to this visit
         self.write({'report_document_id': doc.id})
 
-    # === NEW METHOD: Save Signed Report ===
+    # === DOCUMENT REPLACEMENT LOGIC  ===
+    def _save_signed_report_to_folder(self):
+        """
+        Deletes the unsigned report, saves the signed one, and updates the signature image.
+        """
+        self.ensure_one()
+        _logger.info(f"=== STARTING SAVE PROCESS FOR NOT CONTRACTED VISIT: {self.name} ===")
 
-    # *** THIS FUNCTION IS NO LONGER NEEDED ***
-    # def _save_signed_report_to_folder(self, signed_pdf_data):
-    #     ... (function removed) ...
+        # 1. Find the completed sign request
+        completed_sign_request = self.env['sign.request'].sudo().search([
+            ('not_contracted_visit_id', '=', self.id),
+            ('state', '=', 'signed')
+        ], limit=1, order='id desc')
+
+        if not completed_sign_request:
+            _logger.warning("=== NO SIGNED REQUEST FOUND ===")
+            return
+
+        # 2. Extract Client Signature
+        signed_item = self.env['sign.request.item'].sudo().search([
+            ('sign_request_id', '=', completed_sign_request.id),
+            ('signature', '!=', False)
+        ], limit=1)
+
+        if signed_item:
+            _logger.info("=== SUCCESS: SIGNATURE FOUND. SAVING TO RECORD... ===")
+            self.sudo().write({'client_signature': signed_item.signature})
+        else:
+            _logger.warning("=== NO SIGNATURE IMAGE FOUND IN REQUEST ===")
+
+        # 3. Handle Document Replacement
+        if completed_sign_request.completed_document:
+            _logger.info("=== REPLACING PDF DOCUMENT ===")
+            # Delete old documents
+            existing_docs = self.env['visit.document'].sudo().search([('not_contracted_visit_id', '=', self.id)])
+            existing_docs.unlink()
+
+            # Find folder
+            main_folder = self.env.ref('company_visit_tracker.folder_not_contracted_visits', raise_if_not_found=False)
+            folder_id = False
+            if main_folder:
+                visit_date = self.visit_date or fields.Date.today()
+                folder_name = visit_date.strftime('%Y-%m (%B)')
+                month_folder = self.env['visit.folder'].sudo().search([
+                    ('name', '=', folder_name),
+                    ('parent_id', '=', main_folder.id)
+                ], limit=1)
+                if month_folder:
+                    folder_id = month_folder.id
+
+            # Create new document
+            signed_pdf = completed_sign_request.completed_document
+            report_name = f'Signed Visit Report - {self.name}.pdf'
+
+            doc = self.env['visit.document'].sudo().create({
+                'name': report_name,
+                'folder_id': folder_id,
+                'datas': signed_pdf,
+                'not_contracted_visit_id': self.id,
+            })
+
+            self.sudo().write({'report_document_id': doc.id})
 
     # === ACTIONS ===
     def action_print_report(self):
-        """Triggers Odoo to generate and download the visit report as PDF."""
         self.ensure_one()
         report = self.env.ref('company_visit_tracker.action_report_not_contracted_visit', raise_if_not_found=False)
-        if not report:
-            raise UserError(_t("The non-contracted visit report could not be found."))
-
         return report.report_action(self)
 
     def action_send_report_for_signature(self):
         """
         Generates a fresh version of the visit report, creates a Sign Template,
-        and sends a digital signature request directly to the client.
-        ... (rest of comments) ...
+        and opens the standard Odoo Sign wizard.
         """
         self.ensure_one()
 
-        # Ensure the client has an email address
         if not self.partner_id.email:
             raise UserError(_t("The client company does not have an email address set."))
 
-        # Load the visit report definition
         report = self.env.ref('company_visit_tracker.action_report_not_contracted_visit', raise_if_not_found=False)
         if not report:
             raise UserError(_t("The visit report definition could not be found. Please contact your administrator."))
 
         report_name = f'Service Call Report - {self.name}'
-
-        # Render PDF report from QWeb template
         pdf_report, _ = report._render_qweb_pdf(report_ref=report.report_name, res_ids=self.ids)
+
         if not pdf_report:
             raise UserError(_t("Failed to generate the visit report PDF."))
 
-        # === STEP 1: Create attachment from generated PDF ===
         attachment = self.env['ir.attachment'].create({
             'name': report_name + '.pdf',
             'type': 'binary',
             'datas': base64.b64encode(pdf_report),
             'res_model': 'sign.template',
-            'res_id': 0,  # Temporarily unset, will be updated below
+            'res_id': 0,
             'mimetype': 'application/pdf',
         })
 
-        # === STEP 2: Get customer role (required by Odoo Sign) ===
-        ClientRole = self.env.ref('sign.sign_item_role_customer', raise_if_not_found=False)
-        if not ClientRole:
-            ClientRole = self.env['sign.item.role'].search([('name', '=', 'Customer')], limit=1)
+        ClientRole = self.env.ref('sign.sign_item_role_customer', raise_if_not_found=False) or \
+                     self.env['sign.item.role'].search([('name', '=', 'Customer')], limit=1)
 
         if not ClientRole:
             raise UserError(_t("Customer role not found. Please ensure the Sign module is fully set up."))
 
-        # === STEP 3: Create sign template from attachment ===
         template = self.env['sign.template'].create({
             'name': report_name,
             'attachment_id': attachment.id,
         })
+        attachment.write({'res_model': 'sign.template', 'res_id': template.id})
 
-        # Update attachment to point to the new template
-        attachment.write({
-            'res_model': 'sign.template',
-            'res_id': template.id,
-        })
-
-        # === STEP 4: Add customer signature field to template ===
-        # Coordinates may need adjusting based on actual report layout
         self.env['sign.item'].create({
             'template_id': template.id,
             'type_id': self.env.ref('sign.sign_item_type_signature').id,
@@ -270,37 +236,100 @@ class NotContractedVisit(models.Model):
             'height': 0.06,
         })
 
-        # === STEP 5: Create the Sign Request ===
-        # The .create() method will automatically trigger the send.
-        self.env['sign.request'].create({
-            'template_id': template.id,
-            'reference': report_name,
-            'subject': _t("Signature Request for Visit Report: %s") % self.name,
-            'not_contracted_visit_id': self.id,
-            'request_item_ids': [(0, 0, {
-                'partner_id': self.partner_id.id,
-                'role_id': ClientRole.id,
-            })],
-        })
-
-        # Step 6: Removed the manual send block to prevent double emails.
-
-        # === STEP 7: Return confirmation popup ===
+        # === OPEN ODOO'S NATIVE SIGN WIZARD ===
         return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _t('Success'),
-                'message': _t('Signature request sent directly to client %s.') % self.partner_id.name,
-                'type': 'success',
-                'sticky': False,
+            'name': _t('Send Signature Request'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sign.send.request',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_template_id': template.id,
+                'default_subject': _t("Signature Request for Visit Report: %s") % self.name,
+                # This ensures the created sign.request is linked back to your visit
+                'default_not_contracted_visit_id': self.id,
             }
         }
 
     def action_mark_done(self):
-        """Marks the visit as completed."""
         return self.write({'state': 'done'})
 
     def action_cancel(self):
-        """Cancels the visit record."""
         return self.write({'state': 'cancelled'})
+
+    @api.model
+    def get_dashboard_stats(self):
+        """Universal Fetcher: Uses global environment to force-merge statistics."""
+        # 1. Access models via the global env to ensure model isolation is bridged
+        v_model = self.env['company.visit'].sudo().with_context(active_test=False)
+        nc_model = self.env['not.contracted.visit'].sudo().with_context(active_test=False)
+
+        # 2. Fetch ALL records
+        visits = v_model.search([])
+        nc_visits = nc_model.search([]) if nc_model.exists() else self.env['not.contracted.visit']
+
+        # 3. KPI CALCULATIONS (Manual Aggregation)
+        # We manually sum them to ensure no Odoo 'context' filters them out
+        total_len = len(visits) + len(nc_visits)
+
+        pending_total = (len(visits.filtered(lambda v: v.state == 'pending')) +
+                         len(nc_visits.filtered(lambda v: v.state == 'pending')))
+
+        done_total = (len(visits.filtered(lambda v: v.state == 'done')) +
+                      len(nc_visits.filtered(lambda v: v.state == 'done')))
+
+        cancelled_total = (len(visits.filtered(lambda v: v.state == 'cancelled')) +
+                           len(nc_visits.filtered(lambda v: v.state == 'cancelled')))
+
+        extra_total = len(visits.filtered(lambda v: v.is_extra_visit)) + len(nc_visits)
+
+        # 4. ENGINEER WORKLOAD
+        engineers_data = {}
+
+        # Combined list for workload processing
+        all_records = list(visits) + list(nc_visits)
+
+        for rec in all_records:
+            if rec.assign_engineer_id:
+                eng_id = rec.assign_engineer_id.id
+                if eng_id not in engineers_data:
+                    engineers_data[eng_id] = {
+                        'id': eng_id,
+                        'name': rec.assign_engineer_id.name,
+                        'pending': 0, 'done': 0, 'total': 0
+                    }
+
+                engineers_data[eng_id]['total'] += 1
+                if rec.state == 'pending':
+                    engineers_data[eng_id]['pending'] += 1
+                elif rec.state == 'done':
+                    engineers_data[eng_id]['done'] += 1
+
+        # 5. ACTION NEEDED
+        recent_v = v_model.search([('state', '=', 'pending')], order='create_date desc', limit=5)
+        recent_nc = nc_model.search([('state', '=', 'pending')], order='create_date desc', limit=5)
+
+        combined_recent = []
+        for r in recent_v:
+            combined_recent.append({
+                'id': r.id, 'model': 'company.visit', 'name': r.name,
+                'partner': r.partner_id.name, 'date': r.create_date.strftime('%Y-%m-%d') if r.create_date else ''
+            })
+        for r in recent_nc:
+            combined_recent.append({
+                'id': r.id, 'model': 'not.contracted.visit', 'name': r.name,
+                'partner': r.partner_id.name, 'date': r.create_date.strftime('%Y-%m-%d') if r.create_date else ''
+            })
+
+        return {
+            'user_name': self.env.user.name,
+            'kpi': {
+                'total': total_len,
+                'pending': pending_total,
+                'done': done_total,
+                'cancelled': cancelled_total,
+                'extra': extra_total,
+            },
+            'engineers': list(engineers_data.values()),
+            'recent_extras': sorted(combined_recent, key=lambda x: x['date'], reverse=True)[:5],
+        }
