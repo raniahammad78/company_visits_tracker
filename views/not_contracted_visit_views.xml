@@ -102,6 +102,7 @@
                         <group>
                             <field name="partner_id"/>
                             <field name="partner_address"/>
+                            <field name="cc_partner_ids" widget="many2many_tags" placeholder="Add contacts in copy..."/>
                         </group>
                         <group>
                             <field name="visit_date"/>

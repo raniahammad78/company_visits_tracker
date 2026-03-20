@@ -45,6 +45,7 @@
                             <field name="visit_number"/>
                             <field name="folder_id" readonly="1"/>
                             <field name="partner_address"/>
+                            <field name="cc_partner_ids" widget="many2many_tags" placeholder="Add contacts in copy..."/>
                         </group>
                         <group>
                             <field name="visit_date"/>
