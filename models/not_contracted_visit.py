@@ -46,6 +46,12 @@ class NotContractedVisit(models.Model):
     engineer_signature = fields.Binary(string="Engineer Signature")
     client_signature = fields.Binary(string="Client Signature")
 
+    cc_partner_ids = fields.Many2many(
+        'res.partner',
+        string="Contacts in Copy",
+        help="Contacts who will receive a copy of the final signed report."
+    )
+
     # Documents
     report_document_id = fields.Many2one('visit.document', string="Generated Report", readonly=True, copy=False)
     sign_request_ids = fields.One2many('sign.request', 'not_contracted_visit_id', string='Signature Requests',
@@ -117,7 +123,8 @@ class NotContractedVisit(models.Model):
     # === DOCUMENT REPLACEMENT LOGIC  ===
     def _save_signed_report_to_folder(self):
         """
-        Deletes the unsigned report, saves the signed one, and updates the signature image.
+        Deletes the unsigned report, saves the signed one, updates the signature image,
+        and sends the signed report to CC contacts.
         """
         self.ensure_one()
         _logger.info(f"=== STARTING SAVE PROCESS FOR NOT CONTRACTED VISIT: {self.name} ===")
@@ -145,6 +152,7 @@ class NotContractedVisit(models.Model):
             _logger.warning("=== NO SIGNATURE IMAGE FOUND IN REQUEST ===")
 
         # 3. Handle Document Replacement
+        signed_pdf = None
         if completed_sign_request.completed_document:
             _logger.info("=== REPLACING PDF DOCUMENT ===")
             # Delete old documents
@@ -177,6 +185,89 @@ class NotContractedVisit(models.Model):
 
             self.sudo().write({'report_document_id': doc.id})
 
+        # 4. Send Email to CC Contacts
+        if self.cc_partner_ids and signed_pdf:
+            self._send_signed_report_to_cc_contacts(signed_pdf)
+
+    def _send_signed_report_to_cc_contacts(self, signed_pdf):
+        """
+        Send the signed visit report to all contacts in copy.
+        """
+        self.ensure_one()
+        if not self.cc_partner_ids:
+            _logger.info("=== NO CC CONTACTS TO NOTIFY ===")
+            return
+
+        _logger.info(f"=== SENDING SIGNED REPORT TO {len(self.cc_partner_ids)} CC CONTACTS ===")
+
+        # Create attachment for the signed PDF
+        attachment = self.env['ir.attachment'].sudo().create({
+            'name': f'Signed Visit Report - {self.name}.pdf',
+            'type': 'binary',
+            'datas': signed_pdf,
+            'res_model': self._name,
+            'res_id': self.id,
+            'mimetype': 'application/pdf',
+        })
+
+        # Prepare email template
+        mail_template = self.env.ref('company_visit_tracker.email_template_signed_visit_report',
+                                     raise_if_not_found=False)
+
+        # Send emails immediately to CC contacts
+        for cc_partner in self.cc_partner_ids:
+            if cc_partner.email:
+                mail_values = {
+                    'subject': f'Signed Visit Report - {self.name}',
+                    'body_html': f"""
+                        <div style="margin: 0px; padding: 0px; font-family: Arial, Helvetica, sans-serif; font-size: 13px;">
+                            <p>Dear {cc_partner.name},</p>
+
+                            <p>We are pleased to inform you that the visit report has been signed by all parties.</p>
+
+                            <p><strong>Visit Details:</strong></p>
+                            <table style="border-collapse: collapse; margin-left: 20px;">
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Visit Reference:</strong></td>
+                                    <td style="padding: 5px;">{self.name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Visit Date:</strong></td>
+                                    <td style="padding: 5px;">{self.visit_date}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Company:</strong></td>
+                                    <td style="padding: 5px;">{self.partner_id.name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Assigned Engineer:</strong></td>
+                                    <td style="padding: 5px;">{self.assign_engineer_id.name if self.assign_engineer_id else 'N/A'}</td>
+                                </tr>
+                                {'<tr><td style="padding: 5px;"><strong>Type of Problem:</strong></td><td style="padding: 5px;">' + self.reason + '</td></tr>' if self.reason else ''}
+                            </table>
+
+                            <p>Please find the signed report attached to this email for your records.</p>
+
+                            <p>If you have any questions or concerns, please do not hesitate to contact us.</p>
+
+                            <p>
+                                Best regards,<br/>
+                                {self.company_id.name}<br/>
+                                {('Phone: ' + self.company_id.phone + '<br/>') if self.company_id.phone else ''}
+                                {('Email: ' + self.company_id.email) if self.company_id.email else ''}
+                            </p>
+                        </div>
+                    """,
+                    'email_to': cc_partner.email,
+                    'email_from': self.env.user.email or self.company_id.email,
+                    'attachment_ids': [(4, attachment.id)],
+                }
+
+                # Create and send the email
+                mail = self.env['mail.mail'].sudo().create(mail_values)
+                mail.sudo().send()
+                _logger.info(f"=== EMAIL QUEUED FOR: {cc_partner.email} ===")
+
     # === ACTIONS ===
     def action_print_report(self):
         self.ensure_one()
@@ -189,6 +280,10 @@ class NotContractedVisit(models.Model):
         and opens the standard Odoo Sign wizard.
         """
         self.ensure_one()
+
+        # Ensure the engineer has signed on the server first
+        if not self.engineer_signature:
+            raise UserError(_t("The assigned engineer must sign the visit form before sending it to the company."))
 
         if not self.partner_id.email:
             raise UserError(_t("The client company does not have an email address set."))
@@ -236,6 +331,12 @@ class NotContractedVisit(models.Model):
             'height': 0.06,
         })
 
+        # Build signer list with ONLY the Customer
+        signer_ids = [(0, 0, {
+            'role_id': ClientRole.id,
+            'partner_id': self.partner_id.id,
+        })]
+
         # === OPEN ODOO'S NATIVE SIGN WIZARD ===
         return {
             'name': _t('Send Signature Request'),
@@ -246,8 +347,9 @@ class NotContractedVisit(models.Model):
             'context': {
                 'default_template_id': template.id,
                 'default_subject': _t("Signature Request for Visit Report: %s") % self.name,
-                # This ensures the created sign.request is linked back to your visit
                 'default_not_contracted_visit_id': self.id,
+                'default_signer_ids': signer_ids,
+                'default_cc_partner_ids': self.cc_partner_ids.ids,
             }
         }
 

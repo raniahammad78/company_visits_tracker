@@ -36,6 +36,12 @@ class CompanyVisit(models.Model):
     engineer_signature = fields.Binary(string="Engineer Signature")
     client_signature = fields.Binary(string="Client Signature")
 
+    cc_partner_ids = fields.Many2many(
+        'res.partner',
+        string="Contacts in Copy",
+        help="Contacts who will receive a copy of the final signed report."
+    )
+
     # Documents
     report_document_id = fields.Many2one('visit.document', string="Generated Report", readonly=True)
     sign_request_ids = fields.One2many('sign.request', 'company_visit_id', string='Signature Requests', readonly=True)
@@ -117,6 +123,10 @@ class CompanyVisit(models.Model):
             _logger.warning(f"Failed to generate report document: {str(e)}")
 
     def _save_signed_report_to_folder(self):
+        """
+        Saves the signed report, updates the signature image,
+        and sends the signed report to CC contacts.
+        """
         self.ensure_one()
         _logger.info(f"=== STARTING SAVE PROCESS FOR VISIT: {self.name} ===")
 
@@ -147,6 +157,7 @@ class CompanyVisit(models.Model):
             _logger.warning("=== ERROR: REQUEST IS SIGNED BUT NO SIGNATURE IMAGE FOUND ===")
 
         # 3. Update Document
+        signed_pdf = None
         if completed_sign_request.completed_document:
             _logger.info("=== REPLACING PDF DOCUMENT ===")
             existing_docs = self.env['visit.document'].sudo().search([('visit_id', '=', self.id)])
@@ -163,6 +174,89 @@ class CompanyVisit(models.Model):
             })
             self.sudo().write({'report_document_id': doc.id})
 
+        # 4. Send Email to CC Contacts
+        if self.cc_partner_ids and signed_pdf:
+            self._send_signed_report_to_cc_contacts(signed_pdf)
+
+    def _send_signed_report_to_cc_contacts(self, signed_pdf):
+        """
+        Send the signed visit report to all contacts in copy.
+        """
+        self.ensure_one()
+        if not self.cc_partner_ids:
+            _logger.info("=== NO CC CONTACTS TO NOTIFY ===")
+            return
+
+        _logger.info(f"=== SENDING SIGNED REPORT TO {len(self.cc_partner_ids)} CC CONTACTS ===")
+
+        # Create attachment for the signed PDF
+        attachment = self.env['ir.attachment'].sudo().create({
+            'name': f'Signed Visit Report - {self.name}.pdf',
+            'type': 'binary',
+            'datas': signed_pdf,
+            'res_model': self._name,
+            'res_id': self.id,
+            'mimetype': 'application/pdf',
+        })
+
+        # Prepare email template
+        mail_template = self.env.ref('company_visit_tracker.email_template_signed_visit_report',
+                                     raise_if_not_found=False)
+
+        # Send emails immediately to CC contacts
+        for cc_partner in self.cc_partner_ids:
+            if cc_partner.email:
+                mail_values = {
+                    'subject': f'Signed Visit Report - {self.name}',
+                    'body_html': f"""
+                        <div style="margin: 0px; padding: 0px; font-family: Arial, Helvetica, sans-serif; font-size: 13px;">
+                            <p>Dear {cc_partner.name},</p>
+
+                            <p>We are pleased to inform you that the visit report has been signed by all parties.</p>
+
+                            <p><strong>Visit Details:</strong></p>
+                            <table style="border-collapse: collapse; margin-left: 20px;">
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Visit Reference:</strong></td>
+                                    <td style="padding: 5px;">{self.name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Visit Date:</strong></td>
+                                    <td style="padding: 5px;">{self.visit_date}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Company:</strong></td>
+                                    <td style="padding: 5px;">{self.partner_id.name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px;"><strong>Assigned Engineer:</strong></td>
+                                    <td style="padding: 5px;">{self.assign_engineer_id.name if self.assign_engineer_id else 'N/A'}</td>
+                                </tr>
+                                {'<tr><td style="padding: 5px;"><strong>Type of Problem:</strong></td><td style="padding: 5px;">' + self.reason + '</td></tr>' if self.reason else ''}
+                            </table>
+
+                            <p>Please find the signed report attached to this email for your records.</p>
+
+                            <p>If you have any questions or concerns, please do not hesitate to contact us.</p>
+
+                            <p>
+                                Best regards,<br/>
+                                {self.company_id.name}<br/>
+                                {('Phone: ' + self.company_id.phone + '<br/>') if self.company_id.phone else ''}
+                                {('Email: ' + self.company_id.email) if self.company_id.email else ''}
+                            </p>
+                        </div>
+                    """,
+                    'email_to': cc_partner.email,
+                    'email_from': self.env.user.email or self.company_id.email,
+                    'attachment_ids': [(4, attachment.id)],
+                }
+
+                # Create and send the email
+                mail = self.env['mail.mail'].sudo().create(mail_values)
+                mail.sudo().send()
+                _logger.info(f"=== EMAIL QUEUED FOR: {cc_partner.email} ===")
+
     def action_mark_done(self):
         return self.write({'state': 'done'})
 
@@ -170,14 +264,17 @@ class CompanyVisit(models.Model):
         return self.write({'state': 'cancelled'})
 
     def action_print_report(self):
+        self.ensure_one()
         report = self.env.ref('company_visit_tracker.action_report_company_visit', raise_if_not_found=False)
         return report.report_action(self)
 
     def action_send_report_by_email(self):
         """
-        Generates the visit report, creates a Sign Template with a signature field,
-        and uses the standard Odoo wizard in the background to send the correct signature link.
+        Generates the visit report, creates a Sign Template with ONLY the client signature field,
+        and uses the standard Odoo wizard to send the request to the company and CC contacts.
         """
+        if not self.engineer_signature:
+            raise UserError(_t("The assigned engineer must sign the visit form before sending it to the company."))
         self.ensure_one()
 
         if not self.partner_id.email:
@@ -209,7 +306,7 @@ class CompanyVisit(models.Model):
         if not ClientRole:
             raise UserError(_t("Customer role not found. Please ensure the Sign module is fully set up."))
 
-        # 3. Create the Sign Template & Attach Signature Field AT THE SAME TIME
+        # 3. Create the Sign Template & Attach Signature Field for CLIENT ONLY
         template = self.env['sign.template'].create({
             'name': report_name,
             'attachment_id': attachment.id,
@@ -230,36 +327,11 @@ class CompanyVisit(models.Model):
         # Link attachment back to template to prevent viewer crashes
         attachment.write({'res_model': 'sign.template', 'res_id': template.id})
 
-        # Get Engineer role
-        EngineerRole = self.env.ref('sign.sign_item_role_employee', raise_if_not_found=False) or \
-                       self.env['sign.item.role'].search([('name', '=', 'Employee')], limit=1)
-        if not EngineerRole:
-            raise UserError(_t("Employee role not found."))
-
-        # Add Engineer signature field to template
-        self.env['sign.item'].create({
-            'template_id': template.id,
-            'type_id': self.env.ref('sign.sign_item_type_signature').id,
-            'name': 'Engineer Signature',
-            'required': True,
-            'responsible_id': EngineerRole.id,
-            'page': 1,
-            'posX': 0.12,
-            'posY': 0.85,
-            'width': 0.25,
-            'height': 0.08,
-        })
-
-        # Build signer list with both Customer and Engineer
+        # Build signer list with ONLY the Customer
         signer_ids = [(0, 0, {
             'role_id': ClientRole.id,
             'partner_id': self.partner_id.id,
         })]
-        if self.assign_engineer_id and self.assign_engineer_id.partner_id:
-            signer_ids.append((0, 0, {
-                'role_id': EngineerRole.id,
-                'partner_id': self.assign_engineer_id.partner_id.id,
-            }))
 
         # 4. Open Sign Wizard for review before sending
         return {
@@ -274,6 +346,7 @@ class CompanyVisit(models.Model):
                 'default_filename': report_name + '.pdf',
                 'default_company_visit_id': self.id,
                 'default_signer_ids': signer_ids,
+                'default_cc_partner_ids': self.cc_partner_ids.ids,
             }
         }
 
@@ -348,34 +421,26 @@ class CompanyVisit(models.Model):
             sla_status = 'Overdue' if days_pending > 3 else 'On Time'
             sla_color = 'danger' if days_pending > 3 else 'success'
 
-            # ... (previous code)
-            combined_recent = []
-            for r in list(recent_v) + list(recent_nc):
-                days_pending = (today - r.create_date.date()).days if r.create_date else 0
-                sla_status = 'Overdue' if days_pending > 3 else 'On Time'
-                sla_color = 'danger' if days_pending > 3 else 'success'
+            combined_recent.append({
+                'id': r.id,
+                'model': r._name,
+                'name': r.name,
+                'partner': r.partner_id.name,
+                'date': r.create_date.strftime('%Y-%m-%d') if r.create_date else '',
+                'days_pending': days_pending,
+                'sla_status': sla_status,
+                'sla_color': sla_color
+            })
 
-                combined_recent.append({
-                    'id': r.id,
-                    'model': r._name,
-                    'name': r.name,
-                    'partner': r.partner_id.name,
-                    'date': r.create_date.strftime('%Y-%m-%d') if r.create_date else '',
-                    'days_pending': days_pending,
-                    'sla_status': sla_status,
-                    'sla_color': sla_color
-                })
+        all_users = self.env['res.users'].sudo().search([('share', '=', False)])  # Get internal users
+        available_engineers = [{'id': u.id, 'name': u.name} for u in all_users]
 
-            # ---> UNINDENT THE CODE BELOW THIS LINE <---
-            all_users = self.env['res.users'].sudo().search([('share', '=', False)])  # Get internal users
-            available_engineers = [{'id': u.id, 'name': u.name} for u in all_users]
-
-            return {
-                'user_name': self.env.user.name,
-                'kpi': {'total': total_count, 'pending': pending_count, 'done': done_count,
-                        'cancelled': cancelled_count,
-                        'extra': v_model.search_count(domain + [('is_extra_visit', '=', True)])},
-                'engineers': list(engineers_data.values()),
-                'recent_extras': sorted(combined_recent, key=lambda x: x['date'], reverse=True)[:5],
-                'available_engineers': available_engineers,
-            }
+        return {
+            'user_name': self.env.user.name,
+            'kpi': {'total': total_count, 'pending': pending_count, 'done': done_count,
+                    'cancelled': cancelled_count,
+                    'extra': v_model.search_count(domain + [('is_extra_visit', '=', True)])},
+            'engineers': list(engineers_data.values()),
+            'recent_extras': sorted(combined_recent, key=lambda x: x['date'], reverse=True)[:5],
+            'available_engineers': available_engineers,
+        }
