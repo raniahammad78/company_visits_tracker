@@ -2,7 +2,7 @@
 <odoo>
     <menuitem
             id="menu_visit_tracker_root"
-            name="Visit Tracker"
+            name="LST-Visit Tracker"
             web_icon="company_visit_tracker,static/description/icon.png"
             sequence="1"/>
 
@@ -15,7 +15,7 @@
     <record id="action_company_visit_all" model="ir.actions.act_window">
         <field name="name">All Visits</field>
         <field name="res_model">company.visit</field>
-        <field name="view_mode">gantt,list,form,calendar,graph,pivot</field>
+        <field name="view_mode">list,form,calendar,graph,pivot</field>
     </record>
 
     <record id="action_visit_folder" model="ir.actions.act_window">
@@ -24,13 +24,16 @@
         <field name="view_mode">kanban,form</field>
         <field name="domain">[('is_company_folder', '=', True)]</field>
     </record>
+    <record id="action_visit_dashboard" model="ir.actions.client">
+        <field name="name">Dashboard</field>
+        <field name="tag">visit_dashboard_action</field>
+    </record>
 
-    <menuitem
-            id="menu_visit_dashboard"
-            name="Dashboard"
-            parent="menu_visit_tracker_root"
-            action="action_visit_tracker_dashboard_js"
-            sequence="1"/>
+    <menuitem id="menu_visit_dashboard"
+              name="Dashboard"
+              parent="menu_visit_tracker_root"
+              action="action_visit_dashboard"
+              sequence="1"/>
 
     <menuitem
             id="menu_visit_contract"
@@ -39,14 +42,12 @@
             action="action_visit_contract"
             sequence="2"/>
 
-
     <menuitem
             id="menu_company_visit_all"
             name="All Visits"
             parent="menu_visit_tracker_root"
             action="action_company_visit_all"
             sequence="3"/>
-
 
     <menuitem
             id="menu_not_contracted_visit"
@@ -55,12 +56,10 @@
             action="action_not_contracted_visit"
             sequence="4"/>
 
-
     <menuitem
             id="menu_visit_folder"
             name="Document Folders"
             parent="menu_visit_tracker_root"
             action="action_visit_folder"
             sequence="5"/>
-
 </odoo>

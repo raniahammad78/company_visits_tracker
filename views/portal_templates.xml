@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="portal_my_home_visit" inherit_id="portal.portal_my_home" customize_show="True"
+              name="Portal My Home: Visits Overview">
+        <xpath expr="//div[hasclass('o_portal_docs')]" position="before">
+
+            <div class="row mb-5 mt-3">
+                <div class="col-12 mb-4">
+                    <h2 class="fw-bold text-dark">
+                        <i class="fa fa-dashboard text-primary me-2"/>
+                        My Service Dashboard
+                    </h2>
+                    <p class="text-muted fs-5">Track all your scheduled visits and access your securely signed
+                        reports.
+                    </p>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <a href="/my/visits" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm"
+                             style="border-radius: 15px; background: #ffffff; border-left: 8px solid #007bff !important; transition: transform 0.2s ease, box-shadow 0.2s ease;"
+                             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.1)';"
+                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.05)';">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+
+                                <i class="fa fa-users position-absolute text-primary"
+                                   style="font-size: 140px; right: -20px; bottom: -20px; opacity: 0.05; transform: rotate(-10deg);"/>
+
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-primary"
+                                         style="width: 70px; height: 70px; background: rgba(0, 123, 255, 0.1);">
+                                        <i class="fa fa-calendar-check-o fa-2x"/>
+                                    </div>
+                                    <h1 class="display-3 fw-bold mb-0 text-dark">
+                                        <t t-esc="visit_count"/>
+                                    </h1>
+                                </div>
+                                <h3 class="fw-bold text-dark mb-2">Company Visits</h3>
+                                <p class="text-muted" style="font-size: 1.1rem;">View all pending, completed, and
+                                    canceled service visits.
+                                </p>
+
+                                <div class="mt-4 fw-bold text-primary d-flex align-items-center"
+                                     style="font-size: 1.1rem;">
+                                    View Details
+                                    <i class="fa fa-arrow-right ms-2"/>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <a href="/my/visits?search_in=state&amp;search=done" class="text-decoration-none">
+                        <div class="card h-100 border-0 shadow-sm"
+                             style="border-radius: 15px; background: #ffffff; border-left: 8px solid #28a745 !important; transition: transform 0.2s ease, box-shadow 0.2s ease;"
+                             onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 15px 30px rgba(0,0,0,0.1)';"
+                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.05)';">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+
+                                <i class="fa fa-file-pdf-o position-absolute text-success"
+                                   style="font-size: 140px; right: -20px; bottom: -20px; opacity: 0.05; transform: rotate(-10deg);"/>
+
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-success"
+                                         style="width: 70px; height: 70px; background: rgba(40, 167, 69, 0.1);">
+                                        <i class="fa fa-pencil-square-o fa-2x"/>
+                                    </div>
+                                    <h1 class="display-3 fw-bold mb-0 text-dark">
+                                        <t t-esc="signed_visit_count"/>
+                                    </h1>
+                                </div>
+                                <h3 class="fw-bold text-dark mb-2">Signed Reports</h3>
+                                <p class="text-muted" style="font-size: 1.1rem;">Access and download your legally
+                                    completed PDF reports.
+                                </p>
+
+                                <div class="mt-4 fw-bold text-success d-flex align-items-center"
+                                     style="font-size: 1.1rem;">
+                                    Download Now
+                                    <i class="fa fa-arrow-right ms-2"/>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="text-center mb-5">
+                <a href="/my/visits/request" class="btn btn-dark rounded-pill px-5 py-3 fw-bold shadow-sm"
+                   style="transition: transform 0.2s;"
+                   onmouseover="this.style.transform='translateY(-3px)'"
+                   onmouseout="this.style.transform='translateY(0)'">
+                    <i class="fa fa-plus-circle me-2"/>
+                    Request an Extra Service Visit
+                </a>
+            </div>
+
+            <hr class="mb-5"/>
+            <h4 class="mb-4 text-dark fw-bold">Other Documents</h4>
+        </xpath>
+    </template>
+
+    <template id="portal_my_visits" name="My Visits">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <t t-call="portal.portal_searchbar">
+                <t t-set="title">Visits</t>
+            </t>
+
+            <t t-if="request.params.get('request_success')">
+                <div class="alert alert-success mt-4 alert-dismissible fade show shadow-sm" role="alert"
+                     style="border-radius: 10px;">
+                    <i class="fa fa-check-circle me-2 fa-lg"/>
+                    <strong>Success!</strong>
+                    Your request for an extra visit has been submitted. Our team will contact you shortly.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </t>
+
+            <t t-if="not visits">
+                <p class="alert alert-warning mt-4">There are currently no visits recorded for your company.</p>
+            </t>
+
+            <t t-if="visits and groupby == 'none'" t-call="portal.portal_table">
+                <thead>
+                    <tr class="active">
+                        <th>Reference</th>
+                        <th>Folder</th>
+                        <th>Visit Date</th>
+                        <th>Engineer</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="visits" t-as="visit">
+                        <tr>
+                            <td>
+                                <a t-attf-href="/my/visits/#{visit.id}">
+                                    <t t-esc="visit.name"/>
+                                </a>
+                            </td>
+                            <td>
+                                <i class="fa fa-folder-open-o text-muted me-1"/>
+                                <span t-field="visit.folder_id.name"/>
+                            </td>
+                            <td>
+                                <span t-field="visit.visit_date"/>
+                            </td>
+                            <td>
+                                <span t-field="visit.assign_engineer_id.name"/>
+                            </td>
+                            <td>
+                                <span t-field="visit.state" class="badge rounded-pill text-bg-info"/>
+                            </td>
+                        </tr>
+                    </t>
+                </tbody>
+            </t>
+
+            <t t-if="grouped_visits and groupby == 'folder'">
+
+                <t t-set="bg_colors" t-value="[
+                    'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)',
+                    'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+                    'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                    'linear-gradient(135deg, #cfd9df 0%, #e2ebf0 100%)',
+                    'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'
+                ]"/>
+
+                <div class="accordion mt-4" id="folderAccordion">
+                    <t t-foreach="grouped_visits" t-as="visit_group">
+                        <t t-set="folder" t-value="visit_group[0].folder_id"/>
+                        <t t-set="folder_id_clean" t-value="'folder_' + str(folder.id)"/>
+
+                        <t t-set="bg_color" t-value="bg_colors[visit_group_index % 5]"/>
+
+                        <div class="card mb-4 border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+                            <div class="card-header p-0 border-0" t-att-id="'heading_' + folder_id_clean">
+                                <button class="btn btn-link w-100 text-start text-decoration-none p-4 d-flex align-items-center justify-content-between collapsed"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        t-attf-data-bs-target="##{folder_id_clean}"
+                                        aria-expanded="false"
+                                        t-attf-aria-controls="#{folder_id_clean}"
+                                        t-att-style="'background: ' + bg_color + ';'">
+
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm"
+                                             style="width: 60px; height: 60px; background: rgba(0, 0, 0, 0.05); color: #333;">
+                                            <i class="fa fa-folder-open fa-2x"/>
+                                        </div>
+                                        <div class="text-dark">
+                                            <h3 class="mb-0 fw-bold">
+                                                <t t-esc="folder.name"/>
+                                            </h3>
+                                            <span class="text-muted">
+                                                <i class="fa fa-file-text-o me-1"/>
+                                                <t t-esc="len(visit_group)"/>
+                                                Reports Available
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                         style="width: 40px; height: 40px; background: rgba(0,0,0,0.05); color: #333;">
+                                        <i class="fa fa-chevron-down"/>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div t-att-id="folder_id_clean" class="collapse"
+                                 t-attf-aria-labelledby="'heading_' + folder_id_clean"
+                                 data-bs-parent="#folderAccordion">
+                                <div class="card-body bg-light p-4">
+                                    <div class="row">
+                                        <t t-foreach="visit_group" t-as="visit">
+                                            <div class="col-md-6 col-lg-4 mb-3">
+                                                <div class="card h-100 border-0 shadow-sm"
+                                                     style="border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;"
+                                                     onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.1)'"
+                                                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-start mb-3">
+                                                            <h5 class="card-title fw-bold mb-0 text-dark">
+                                                                <t t-esc="visit.name"/>
+                                                            </h5>
+                                                            <span t-if="visit.state == 'done'"
+                                                                  class="badge bg-success rounded-pill px-3 py-2">Done
+                                                            </span>
+                                                            <span t-if="visit.state == 'pending'"
+                                                                  class="badge bg-warning text-dark rounded-pill px-3 py-2">
+                                                                Pending
+                                                            </span>
+                                                            <span t-if="visit.state == 'cancelled'"
+                                                                  class="badge bg-danger rounded-pill px-3 py-2">
+                                                                Cancelled
+                                                            </span>
+                                                        </div>
+                                                        <div class="d-flex align-items-center mb-2 text-muted">
+                                                            <i class="fa fa-calendar text-primary me-2"/>
+                                                            <span t-field="visit.visit_date"/>
+                                                        </div>
+                                                        <div class="d-flex align-items-center mb-4 text-muted">
+                                                            <i class="fa fa-user-circle text-primary me-2"/>
+                                                            <span t-field="visit.assign_engineer_id.name"/>
+                                                        </div>
+                                                        <div class="d-flex gap-2 mt-2">
+                                                            <a t-attf-href="/my/visits/#{visit.id}"
+                                                               class="btn btn-outline-primary flex-grow-1 rounded-pill fw-bold text-center">
+                                                                Details
+                                                                <i class="fa fa-arrow-right ms-1"/>
+                                                            </a>
+
+                                                            <t t-if="visit.state == 'done'">
+                                                                <a t-attf-href="/my/visits/#{visit.id}/download_signed"
+                                                                   class="btn btn-success flex-grow-1 rounded-pill fw-bold text-center"
+                                                                   title="Download Signed Report">
+                                                                    Download
+                                                                    <i class="fa fa-download ms-1"/>
+                                                                </a>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <template id="portal_visit_detail" name="Visit Details">
+        <t t-call="portal.portal_layout">
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">Visit:
+                        <span t-field="visit.name"/>
+                    </h3>
+
+                    <t t-if="signed_doc">
+                        <a t-attf-href="/my/visits/#{visit.id}/download_signed" class="btn btn-success"
+                           title="Download Signed Report">
+                            <i class="fa fa-download me-1"/>
+                            Download Signed PDF
+                        </a>
+                    </t>
+
+                </div>
+
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Date:</strong>
+                            <span t-field="visit.visit_date"/>
+                            <br/>
+                            <strong>Folder:</strong>
+                            <i class="fa fa-folder-open-o"/>
+                            <span t-field="visit.folder_id.name"/>
+                            <br/>
+                            <strong>Status:</strong>
+                            <span t-field="visit.state"/>
+                            <br/>
+                            <strong>Engineer:</strong>
+                            <span t-field="visit.assign_engineer_id.name"/>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Type of Problem:</strong>
+                            <span t-field="visit.reason"/>
+                            <br/>
+                            <strong>Comments:</strong>
+                            <p class="text-muted" t-field="visit.description"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5" id="visit_communication">
+                <h3>Communication History</h3>
+                <t t-call="portal.message_thread">
+                    <t t-set="object" t-value="visit"/>
+                </t>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_request_visit_form" name="Request Extra Visit">
+        <t t-call="portal.portal_layout">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card mt-5 border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+                        <div class="card-header bg-primary text-white p-4 border-0">
+                            <h3 class="mb-0">
+                                <i class="fa fa-plus-circle me-2"/>
+                                Request an Extra Visit
+                            </h3>
+                            <p class="mb-0 mt-2" style="opacity: 0.8;">Fill out the details below and our team will
+                                schedule an engineer for you.
+                            </p>
+                        </div>
+                        <div class="card-body p-5">
+                            <form action="/my/visits/request/submit" method="post">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                                <div class="mb-4">
+                                    <label for="reason" class="form-label fw-bold text-dark">Reason for Visit
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text"
+                                           class="form-control form-control-lg bg-light border-0 shadow-none"
+                                           id="reason" name="reason" required="1"
+                                           placeholder="e.g., Emergency Repair, Routine Check..."/>
+                                </div>
+
+                                <div class="mb-5">
+                                    <label for="description" class="form-label fw-bold text-dark">Additional Details
+                                    </label>
+                                    <textarea class="form-control form-control-lg bg-light border-0 shadow-none"
+                                              id="description" name="description" rows="5"
+                                              placeholder="Please describe the issue or your request in detail..."></textarea>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <a href="/my" class="btn btn-link text-muted text-decoration-none fw-bold">
+                                        <i class="fa fa-arrow-left me-1"/>
+                                        Cancel
+                                    </a>
+                                    <button type="submit"
+                                            class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-sm">
+                                        Submit Request
+                                        <i class="fa fa-paper-plane ms-2"/>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+</odoo>
