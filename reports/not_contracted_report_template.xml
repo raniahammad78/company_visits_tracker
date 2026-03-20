@@ -55,6 +55,9 @@
                                         <img t-att-src="'data:image/png;base64,%s' % doc.engineer_signature.decode()"
                                              style="width: 200px; height: 100px;"/>
                                     </t>
+                                    <t t-else="">
+                                        <div style="display: inline-block; width: 200px; height: 100px;"></div>
+                                    </t>
                                 </td>
                                 <td style="width: 50%; text-align: center;">
                                     <p>
@@ -63,6 +66,9 @@
                                     <t t-if="doc.client_signature">
                                         <img t-att-src="'data:image/png;base64,%s' % doc.client_signature.decode()"
                                              style="width: 200px; height: 100px;"/>
+                                    </t>
+                                    <t t-else="">
+                                        <div style="display: inline-block; width: 200px; height: 100px; border-bottom: 1px dotted #ccc;"></div>
                                     </t>
                                 </td>
                             </tr>
