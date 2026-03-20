@@ -20,9 +20,9 @@
     'category': 'Services/Project',
     'version': '18.0.2.0.0',
     'sequence': 1,
-    'depends': ['base', 'mail', 'portal', 'web', 'sign', 'account', 'web_gantt'],
+    'depends': ['base', 'mail', 'portal', 'web', 'sign', 'account'],
     'data': [
-        "views/dashboard_action.xml",
+        "views/portal_templates.xml",
         "reports/not_contracted_report_template.xml",
         "data/folder_data.xml",
         "reports/not_contracted_report.xml",
@@ -39,9 +39,12 @@
         "reports/visit_report.xml",
         "security/ir.model.access.csv",
     ],
+
     'assets': {
         'web.assets_backend': [
-            'company_visit_tracker/static/src/dashboard/visit_dashboard.xml',
+            # Ensure the folder name matches your exact module folder name!
+            'company_visit_tracker/static/src/js/dashboard.js',
+            'company_visit_tracker/static/src/xml/dashboard.xml',
         ],
     },
     'installable': True,
