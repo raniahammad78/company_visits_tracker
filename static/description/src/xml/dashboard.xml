@@ -1,1 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="company_visit_tracker.VisitDashboard" owl="1">
+        <div class="min-vh-100 overflow-auto w-100" style="background-color: #f8fafc;">
 
+            <div class="container-fluid py-4 px-md-5">
+
+                <div class="d-flex justify-content-between align-items-center mb-5 flex-wrap gap-3">
+                    <div>
+                        <h2 class="fw-bold text-dark mb-1">
+                            👋 Welcome back, <t t-esc="state.data.user_name"/>!
+                        </h2>
+                        <p class="text-muted fs-5 mb-0">Here is what is happening with your service operations today.</p>
+                    </div>
+
+                    <div class="d-flex gap-3 align-items-center">
+
+                        <div class="dropdown me-2">
+                            <button class="btn btn-white border fw-bold shadow-sm rounded-pill px-4 py-2 dropdown-toggle bg-white"
+                                    type="button" data-bs-toggle="dropdown">
+                                <i class="fa fa-calendar text-primary me-2"/>
+                                <t t-if="state.date_filter === 'all'">All Time</t>
+                                <t t-if="state.date_filter === 'year'">This Year</t>
+                                <t t-if="state.date_filter === 'month'">This Month</t>
+                            </button>
+                            <ul class="dropdown-menu shadow-sm border-0" style="border-radius: 12px;">
+                                <li><a class="dropdown-item py-2" href="#" t-on-click.prevent="() => this.setDateFilter('all')">All Time</a></li>
+                                <li><a class="dropdown-item py-2" href="#" t-on-click.prevent="() => this.setDateFilter('year')">This Year</a></li>
+                                <li><a class="dropdown-item py-2" href="#" t-on-click.prevent="() => this.setDateFilter('month')">This Month</a></li>
+                            </ul>
+                        </div>
+
+                        <button class="btn btn-primary fw-bold shadow-sm rounded-pill px-4 py-2"
+                                t-on-click="createNewVisit">
+                            <i class="fa fa-plus-circle me-2"/>
+                            Create Visit
+                        </button>
+                        <button class="btn btn-outline-secondary fw-bold shadow-sm rounded-pill px-4 py-2 bg-white"
+                                t-on-click="openContracts">
+                            <i class="fa fa-file-text-o me-2"/>
+                            View Contracts
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card border-0 shadow-sm h-100"
+                             t-on-click="() => this.onSearchClick([], 'All Visits')"
+                             style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border-radius: 16px; cursor: pointer; transition: transform 0.2s;"
+                             onmouseover="this.style.transform='translateY(-5px)'"
+                             onmouseout="this.style.transform='translateY(0)'">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+                                <i class="fa fa-briefcase position-absolute"
+                                   style="font-size: 80px; right: -10px; bottom: -10px; opacity: 0.1; color: #0369a1;"/>
+                                <h6 class="fw-bold text-uppercase mb-2" style="color: #0369a1; letter-spacing: 1px;">Total Visits</h6>
+                                <h1 class="display-4 fw-bold mb-0" style="color: #075985;"><t t-esc="state.data.kpi.total"/></h1>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card border-0 shadow-sm h-100"
+                             t-on-click="() => this.onSearchClick([['state', '=', 'pending']], 'Pending Visits')"
+                             style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 16px; cursor: pointer; transition: transform 0.2s;"
+                             onmouseover="this.style.transform='translateY(-5px)'"
+                             onmouseout="this.style.transform='translateY(0)'">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+                                <i class="fa fa-clock-o position-absolute"
+                                   style="font-size: 80px; right: -10px; bottom: -10px; opacity: 0.1; color: #a16207;"/>
+                                <h6 class="fw-bold text-uppercase mb-2" style="color: #a16207; letter-spacing: 1px;">Pending Action</h6>
+                                <h1 class="display-4 fw-bold mb-0" style="color: #854d0e;"><t t-esc="state.data.kpi.pending"/></h1>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card border-0 shadow-sm h-100"
+                             t-on-click="() => this.onSearchClick([['state', '=', 'done']], 'Completed Visits')"
+                             style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; cursor: pointer; transition: transform 0.2s;"
+                             onmouseover="this.style.transform='translateY(-5px)'"
+                             onmouseout="this.style.transform='translateY(0)'">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+                                <i class="fa fa-check-circle position-absolute"
+                                   style="font-size: 80px; right: -10px; bottom: -10px; opacity: 0.1; color: #15803d;"/>
+                                <h6 class="fw-bold text-uppercase mb-2" style="color: #15803d; letter-spacing: 1px;">Completed</h6>
+                                <h1 class="display-4 fw-bold mb-0" style="color: #166534;"><t t-esc="state.data.kpi.done"/></h1>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="card border-0 shadow-sm h-100"
+                             t-on-click="() => this.openVisits([['is_extra_visit', '=', true]], 'Extra Requests')"
+                             style="background: linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%); border-radius: 16px; cursor: pointer; transition: transform 0.2s;"
+                             onmouseover="this.style.transform='translateY(-5px)'"
+                             onmouseout="this.style.transform='translateY(0)'">
+                            <div class="card-body p-4 position-relative overflow-hidden">
+                                <i class="fa fa-exclamation-circle position-absolute"
+                                   style="font-size: 80px; right: -10px; bottom: -10px; opacity: 0.1; color: #be123c;"/>
+                                <h6 class="fw-bold text-uppercase mb-2" style="color: #be123c; letter-spacing: 1px;">Extra Requests</h6>
+                                <h1 class="display-4 fw-bold mb-0" style="color: #9f1239;"><t t-esc="state.data.kpi.extra"/></h1>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                            <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4">
+                                <h5 class="fw-bold text-dark mb-0"><i class="fa fa-pie-chart text-primary me-2"/>
+                                    Status Overview</h5>
+                            </div>
+                            <div class="card-body d-flex flex-column justify-content-center align-items-center">
+
+                                <div class="position-relative d-flex justify-content-center align-items-center mb-4"
+                                     style="height: 180px; width: 100%;">
+                                    <canvas t-ref="statusChart"></canvas>
+                                    <div class="position-absolute text-center" style="pointer-events: none;">
+                                        <h2 class="fw-bold mb-0 text-dark"><t t-esc="state.data.kpi.total"/></h2>
+                                        <small class="text-muted fw-bold">Total</small>
+                                    </div>
+                                </div>
+
+                                <div class="w-100 px-3 mt-3">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#f59e0b; margin-right:8px;"></span>
+                                            Pending</span>
+                                        <span class="fw-bold"><t t-esc="state.data.kpi.pending"/></span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#22c55e; margin-right:8px;"></span>
+                                            Completed</span>
+                                        <span class="fw-bold"><t t-esc="state.data.kpi.done"/></span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#ef4444; margin-right:8px;"></span>
+                                            Cancelled</span>
+                                        <span class="fw-bold"><t t-esc="state.data.kpi.cancelled"/></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                            <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4">
+                                <h5 class="fw-bold text-dark mb-0"><i class="fa fa-users text-primary me-2"/>
+                                    Engineer Workload</h5>
+                            </div>
+                            <div class="card-body px-4 overflow-auto" style="max-height: 450px;">
+                                <t t-foreach="state.data.engineers" t-as="eng" t-key="eng.id">
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-bold text-dark"><t t-esc="eng.name"/></span>
+                                            <span class="badge rounded-pill bg-light text-dark border"><t t-esc="eng.total"/>
+                                                Assigned</span>
+                                        </div>
+                                        <div class="progress" style="height: 10px; border-radius: 10px;">
+                                            <div class="progress-bar" style="background-color: #22c55e;"
+                                                 role="progressbar"
+                                                 t-att-style="'width: ' + (eng.total > 0 ? (eng.done / eng.total) * 100 : 0) + '%'"></div>
+                                            <div class="progress-bar" style="background-color: #f59e0b;"
+                                                 role="progressbar"
+                                                 t-att-style="'width: ' + (eng.total > 0 ? (eng.pending / eng.total) * 100 : 0) + '%'"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between mt-1 mb-2"
+                                             style="font-size: 0.85rem;">
+                                            <span class="text-success fw-bold"><t t-esc="eng.done"/>
+                                                Done</span>
+                                            <span class="text-warning fw-bold"><t t-esc="eng.pending"/>
+                                                Pending</span>
+                                        </div>
+
+                                        <div class="d-flex gap-2">
+                                            <button t-if="eng.v_total > 0"
+                                                    class="btn btn-sm btn-outline-primary flex-grow-1 py-1"
+                                                    style="font-size: 0.8rem;"
+                                                    t-on-click="() => this.openVisits([['assign_engineer_id', '=', eng.id]], eng.name + ' Contracted', 'company.visit')">
+                                                <i class="fa fa-briefcase me-1"/>
+                                                Contracted (<t t-esc="eng.v_total"/>)
+                                            </button>
+                                            <button t-if="eng.nc_total > 0"
+                                                    class="btn btn-sm btn-outline-secondary flex-grow-1 py-1"
+                                                    style="font-size: 0.8rem;"
+                                                    t-on-click="() => this.openVisits([['assign_engineer_id', '=', eng.id]], eng.name + ' Non-Contracted', 'not.contracted.visit')">
+                                                <i class="fa fa-building-o me-1"/>
+                                                Non-Contracted (<t t-esc="eng.nc_total"/>)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+                            <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4">
+                                <h5 class="fw-bold text-dark mb-0"><i class="fa fa-bell text-danger me-2"/>
+                                    Action Needed</h5>
+                            </div>
+                            <div class="card-body p-0 mt-2">
+                                <div class="list-group list-group-flush">
+                                    <t t-if="state.data.recent_extras.length === 0">
+                                        <div class="p-4 text-muted text-center">No pending extra requests!</div>
+                                    </t>
+                                    <t t-foreach="state.data.recent_extras" t-as="req" t-key="req.id">
+                                        <div class="list-group-item list-group-item-action border-0 border-bottom d-flex justify-content-between align-items-center p-3"
+                                             style="cursor: pointer;"
+                                             t-on-click="() => this.openVisitRecord(req.id, req.model)">
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <h6 class="mb-0 fw-bold text-dark"><t t-esc="req.name"/></h6>
+                                                    <span t-attf-class="badge bg-white text-#{req.sla_color} border border-#{req.sla_color} rounded-pill shadow-sm"
+                                                          style="font-size: 0.65rem;">
+                                                        <t t-esc="req.sla_status"/>
+                                                        (<t t-esc="req.days_pending"/>d)
+                                                    </span>
+                                                </div>
+                                                <small class="text-muted"><i class="fa fa-building-o me-1"/>
+                                                    <t t-esc="req.partner"/></small>
+                                            </div>
+                                            <button class="btn btn-sm btn-light text-primary fw-bold rounded-pill border"
+                                                    t-on-click.stop="() => this.openAssignModal(req)">
+                                                Assign <i class="fa fa-arrow-right ms-1"/>
+                                            </button>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div t-if="state.assignModal.open" class="modal-backdrop fade show" style="opacity: 0.5;"></div>
+            <div t-if="state.assignModal.open" class="modal d-block" tabindex="-1" role="dialog"
+                 style="background: rgba(0,0,0,0.4);">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                        <div class="modal-header bg-light border-bottom-0" style="border-radius: 16px 16px 0 0;">
+                            <h5 class="modal-title fw-bold">Assign Engineer</h5>
+                            <button type="button" class="btn-close" t-on-click="closeModal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <p class="text-muted mb-4">Assign an engineer to <strong><t t-esc="state.assignModal.reqName"/></strong>
+                                .</p>
+
+                            <label class="fw-bold mb-2">Select Engineer:</label>
+                            <select class="form-select form-select-lg mb-3 shadow-sm" t-model="state.assignModal.engId">
+                                <t t-foreach="state.data.available_engineers" t-as="eng" t-key="eng.id">
+                                    <option t-att-value="eng.id"><t t-esc="eng.name"/></option>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="modal-footer border-top-0 pt-0 pb-4 px-4 d-flex justify-content-between">
+                            <button type="button" class="btn btn-light fw-bold rounded-pill px-4"
+                                    t-on-click="closeModal">Cancel</button>
+                            <button type="button" class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm"
+                                    t-on-click="confirmAssign">
+                                Confirm Assignment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </t>
+</templates>
